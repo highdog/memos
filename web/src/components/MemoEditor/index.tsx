@@ -40,6 +40,8 @@ export interface Props {
   memoName?: string;
   // The name of the parent memo if the memo is a comment.
   parentMemoName?: string;
+  // Initial relations to be set when creating a new memo.
+  initialRelations?: MemoRelation[];
   autoFocus?: boolean;
   onConfirm?: (memoName: string) => void;
   onCancel?: () => void;
@@ -57,14 +59,14 @@ interface State {
 }
 
 const MemoEditor = observer((props: Props) => {
-  const { className, cacheKey, memoName, parentMemoName, autoFocus, onConfirm, onCancel } = props;
+  const { className, cacheKey, memoName, parentMemoName, initialRelations, autoFocus, onConfirm, onCancel } = props;
   const t = useTranslate();
   const { i18n } = useTranslation();
   const currentUser = useCurrentUser();
   const [state, setState] = useState<State>({
     memoVisibility: Visibility.PRIVATE,
     attachmentList: [],
-    relationList: [],
+    relationList: initialRelations || [],
     location: undefined,
     isUploadingAttachment: false,
     isRequesting: false,

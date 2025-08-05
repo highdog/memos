@@ -1,8 +1,7 @@
-import { LinkIcon, MilestoneIcon } from "lucide-react";
+import { MilestoneIcon } from "lucide-react";
 import { memo, useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { extractMemoIdFromName } from "@/store/common";
 import { Memo, MemoRelation } from "@/types/proto/api/v1/memo_service";
 import { useTranslate } from "@/utils/i18n";
 
@@ -30,7 +29,7 @@ const MemoRelationListView = (props: Props) => {
   }
 
   return (
-    <div className="relative flex flex-col justify-start items-start w-full px-2 pt-2 pb-1.5 bg-popover rounded-lg border border-border">
+    <div className="relative flex flex-col justify-start items-start w-full">
       <div className="w-full flex flex-row justify-start items-center mb-1 gap-3 opacity-60">
         {referencingMemoList.length > 0 && (
           <button
@@ -40,8 +39,7 @@ const MemoRelationListView = (props: Props) => {
             )}
             onClick={() => setSelectedTab("referencing")}
           >
-            <LinkIcon className="w-3 h-auto shrink-0 opacity-70" />
-            <span>{t("common.referencing")}</span>
+            <span className="text-blue-600 font-semibold">@</span>
             <span className="opacity-80">({referencingMemoList.length})</span>
           </button>
         )}
@@ -65,17 +63,14 @@ const MemoRelationListView = (props: Props) => {
             return (
               <Link
                 key={memo.name}
-                className="w-full flex flex-row justify-start items-center text-sm leading-5 text-muted-foreground hover:text-foreground hover:bg-accent rounded px-2 py-1 transition-colors"
+                className="w-full flex flex-row justify-start items-center text-sm leading-5 hover:bg-accent rounded px-2 py-1 transition-colors"
                 to={`/${memo.name}`}
                 viewTransition
                 state={{
                   from: parentPage,
                 }}
               >
-                <span className="text-xs opacity-60 leading-4 border border-border font-mono px-1 rounded-full mr-1">
-                  {extractMemoIdFromName(memo.name).slice(0, 6)}
-                </span>
-                <span className="truncate">{memo.snippet}</span>
+                <span className="truncate text-gray-500 hover:text-gray-600">{memo.snippet}</span>
               </Link>
             );
           })}
@@ -87,17 +82,14 @@ const MemoRelationListView = (props: Props) => {
             return (
               <Link
                 key={memo.name}
-                className="w-full flex flex-row justify-start items-center text-sm leading-5 text-muted-foreground hover:text-foreground hover:bg-accent rounded px-2 py-1 transition-colors"
+                className="w-full flex flex-row justify-start items-center text-sm leading-5 hover:bg-accent rounded px-2 py-1 transition-colors"
                 to={`/${memo.name}`}
                 viewTransition
                 state={{
                   from: parentPage,
                 }}
               >
-                <span className="text-xs opacity-60 leading-4 border border-border font-mono px-1 rounded-full mr-1">
-                  {extractMemoIdFromName(memo.name).slice(0, 6)}
-                </span>
-                <span className="truncate">{memo.snippet}</span>
+                <span className="truncate text-blue-600 hover:text-blue-700">{memo.snippet}</span>
               </Link>
             );
           })}

@@ -17,6 +17,11 @@ const Tag = observer(({ content }: Props) => {
   const location = useLocation();
   const navigateTo = useNavigateTo();
 
+  // If hideTags is true, don't render the tag
+  if (context.hideTags) {
+    return null;
+  }
+
   const handleTagClick = () => {
     if (context.disableFilter) {
       return;

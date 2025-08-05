@@ -1,8 +1,8 @@
 import { observer } from "mobx-react-lite";
-import SearchBar from "@/components/SearchBar";
 import useCurrentUser from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
-import MemoFilters from "../MemoFilters";
+import SearchBar from "@/components/SearchBar";
+import MemoFilters from "@/components/MemoFilters";
 import StatisticsView from "../StatisticsView";
 import ShortcutsSection from "./ShortcutsSection";
 import TagsSection from "./TagsSection";
@@ -21,12 +21,14 @@ const HomeSidebar = observer((props: Props) => {
         props.className,
       )}
     >
-      <SearchBar />
-      <MemoFilters />
       <div className="mt-1 px-1 w-full">
         <StatisticsView />
-        {currentUser && <ShortcutsSection />}
+        <div className="px-3 py-4">
+          <SearchBar />
+          <MemoFilters />
+        </div>
         <TagsSection />
+        {currentUser && <ShortcutsSection />}
       </div>
     </aside>
   );

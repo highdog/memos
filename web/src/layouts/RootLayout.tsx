@@ -46,7 +46,7 @@ const RootLayout = observer(() => {
   return !initialized ? (
     <Loading />
   ) : (
-    <div className="w-full min-h-full flex flex-row justify-center items-start sm:pl-16">
+    <div className="w-full h-screen overflow-hidden flex flex-row justify-center items-start sm:pl-16">
       {sm && (
         <div
           className={cn(
@@ -58,7 +58,7 @@ const RootLayout = observer(() => {
           <Navigation className="py-4 md:pt-6" collapsed={true} />
         </div>
       )}
-      <main className="w-full h-auto grow shrink flex flex-col justify-start items-center">
+      <main className="w-full h-full grow shrink flex flex-col justify-start items-center overflow-hidden">
         <Suspense fallback={<Loading />}>
           <Outlet />
         </Suspense>

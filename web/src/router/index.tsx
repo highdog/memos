@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import App from "@/App";
 import HomeLayout from "@/layouts/HomeLayout";
+import NotesLayout from "@/layouts/NotesLayout";
 import RootLayout from "@/layouts/RootLayout";
 import Home from "@/pages/Home";
 import Loading from "@/pages/Loading";
@@ -13,6 +14,7 @@ const Explore = lazy(() => import("@/pages/Explore"));
 const Inboxes = lazy(() => import("@/pages/Inboxes"));
 const MemoDetail = lazy(() => import("@/pages/MemoDetail"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const NotesView = lazy(() => import("@/pages/NotesView"));
 const PermissionDenied = lazy(() => import("@/pages/PermissionDenied"));
 const Attachments = lazy(() => import("@/pages/Attachments"));
 const Setting = lazy(() => import("@/pages/Setting"));
@@ -29,6 +31,7 @@ export enum Routes {
   SETTING = "/setting",
   EXPLORE = "/explore",
   AUTH = "/auth",
+  NOTE = "/note",
 }
 
 const router = createBrowserRouter([
@@ -97,6 +100,19 @@ const router = createBrowserRouter([
                 element: (
                   <Suspense fallback={<Loading />}>
                     <UserProfile />
+                  </Suspense>
+                ),
+              },
+            ],
+          },
+          {
+            element: <NotesLayout />,
+            children: [
+              {
+                path: Routes.NOTE,
+                element: (
+                  <Suspense fallback={<Loading />}>
+                    <NotesView />
                   </Suspense>
                 ),
               },

@@ -1,4 +1,4 @@
-import { ArrowUpLeftFromCircleIcon, MessageCircleIcon } from "lucide-react";
+import { ArrowUpLeftFromCircleIcon, MessageCircleIcon, PlusIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { ClientError } from "nice-grpc-web";
 import { useEffect, useState } from "react";
@@ -30,10 +30,21 @@ const MemoDetail = observer(() => {
   const memo = memoStore.getMemoByName(memoName);
   const [parentMemo, setParentMemo] = useState<Memo | undefined>(undefined);
   const [showCommentEditor, setShowCommentEditor] = useState(false);
+  const [showRelatedMemoEditor, setShowRelatedMemoEditor] = useState(false);
   const commentRelations =
     memo?.relations.filter((relation) => relation.relatedMemo?.name === memo.name && relation.type === MemoRelation_Type.COMMENT) || [];
   const comments = commentRelations.map((relation) => memoStore.getMemoByName(relation.memo!.name)).filter((memo) => memo) as any as Memo[];
   const showCreateCommentButton = currentUser && !showCommentEditor;
+  
+  // 获取当前笔记引用的其他笔记（当前笔记 -> 其他笔记）
+  const referencingRelations =
+    memo?.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE && relation.memo?.name === memo.name) || [];
+  const referencingMemos = referencingRelations.map((relation) => memoStore.getMemoByName(relation.relatedMemo!.name)).filter((memo) => memo) as any as Memo[];
+  
+  // 获取引用当前笔记的其他笔记（其他笔记 -> 当前笔记，即 "Referenced by"）
+  const referencedByRelations =
+    memo?.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE && relation.relatedMemo?.name === memo.name) || [];
+  const referencedByMemos = referencedByRelations.map((relation) => memoStore.getMemoByName(relation.memo!.name)).filter((memo) => memo) as any as Memo[];
 
   // Prepare memo.
   useEffect(() => {
@@ -47,7 +58,7 @@ const MemoDetail = observer(() => {
     }
   }, [memoName]);
 
-  // Prepare memo comments.
+  // Prepare memo comments and related memos.
   useEffect(() => {
     if (!memo) {
       return;
@@ -62,12 +73,16 @@ const MemoDetail = observer(() => {
         setParentMemo(undefined);
       }
       await Promise.all(commentRelations.map((relation) => memoStore.getOrFetchMemoByName(relation.memo!.name)));
+      await Promise.all(referencingRelations.map((relation) => memoStore.getOrFetchMemoByName(relation.relatedMemo!.name)));
+      await Promise.all(referencedByRelations.map((relation) => memoStore.getOrFetchMemoByName(relation.memo!.name)));
     })();
   }, [memo]);
 
   if (!memo) {
     return null;
   }
+
+  console.log('MemoDetail 渲染中，memo:', memo.name);
 
   const handleShowCommentEditor = () => {
     setShowCommentEditor(true);
@@ -79,6 +94,16 @@ const MemoDetail = observer(() => {
     setShowCommentEditor(false);
   };
 
+  const handleShowRelatedMemoEditor = () => {
+    setShowRelatedMemoEditor(true);
+  };
+
+  const handleRelatedMemoCreated = async (relatedMemoName: string) => {
+    await memoStore.getOrFetchMemoByName(relatedMemoName);
+    await memoStore.getOrFetchMemoByName(memo.name, { skipCache: true });
+    setShowRelatedMemoEditor(false);
+  };
+
   return (
     <section className="@container w-full max-w-5xl min-h-full flex flex-col justify-start items-center sm:pt-3 md:pt-6 pb-8">
       {!md && (
@@ -87,7 +112,7 @@ const MemoDetail = observer(() => {
         </MobileHeader>
       )}
       <div className={cn("w-full flex flex-row justify-start items-start px-4 sm:px-6 gap-4")}>
-        <div className={cn(md ? "w-[calc(100%-15rem)]" : "w-full")}>
+        <div className={cn(md ? "w-[calc(100%-14rem)]" : "w-full")}>
           {parentMemo && (
             <div className="w-auto inline-block mb-2">
               <Link
@@ -112,6 +137,94 @@ const MemoDetail = observer(() => {
             showPinned
             showNsfwContent
           />
+          
+          {/* 关联笔记区域 */}
+          <div className="pt-6 w-full">
+            {/* 当前笔记引用的其他笔记 */}
+            {referencingMemos.length > 0 && (
+              <div className="mb-6">
+                <div className="w-full flex flex-row justify-between items-center h-8 pl-3 mb-2">
+                  <div className="flex flex-row justify-start items-center">
+                    <span className="text-muted-foreground text-sm">引用的笔记</span>
+                    <span className="text-muted-foreground text-sm ml-1">({referencingMemos.length})</span>
+                  </div>
+                </div>
+                {referencingMemos
+                  .sort((a, b) => new Date(a.createTime!).getTime() - new Date(b.createTime!).getTime())
+                  .map((referencingMemo) => (
+                    <MemoView
+                      key={`referencing-${referencingMemo.name}-${referencingMemo.displayTime}`}
+                      memo={referencingMemo}
+                      parentPage={locationState?.from}
+                      showCreator
+                      compact={false}
+                    />
+                  ))}
+              </div>
+            )}
+            
+            {/* 引用当前笔记的其他笔记 (Referenced by) */}
+            {referencedByMemos.length > 0 && (
+              <div className="mb-6">
+                <div className="w-full flex flex-row justify-between items-center h-8 pl-3 mb-2">
+                  <div className="flex flex-row justify-start items-center">
+                    <span className="text-muted-foreground text-sm">Referenced by</span>
+                    <span className="text-muted-foreground text-sm ml-1">({referencedByMemos.length})</span>
+                  </div>
+                </div>
+                {referencedByMemos
+                  .sort((a, b) => new Date(a.createTime!).getTime() - new Date(b.createTime!).getTime())
+                  .map((referencedByMemo) => (
+                    <MemoView
+                      key={`referenced-by-${referencedByMemo.name}-${referencedByMemo.displayTime}`}
+                      memo={referencedByMemo}
+                      parentPage={locationState?.from}
+                      showCreator
+                      compact={false}
+                    />
+                  ))}
+              </div>
+            )}
+          </div>
+          
+          {/* 创建关联笔记按钮 - 独立区域 */}
+          <div className="pt-4 w-full border-t border-border bg-red-50">
+            <div className="w-full flex flex-row justify-center items-center py-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-2">调试：按钮区域</p>
+                <Button 
+                  variant="outline" 
+                  className="border-2 border-primary/20 hover:border-primary/40 bg-background hover:bg-primary/5"
+                  onClick={() => {
+                    console.log('创建关联笔记按钮被点击');
+                    handleShowRelatedMemoEditor();
+                  }}
+                >
+                  <PlusIcon className="mr-2 w-4 h-auto text-primary" />
+                  <span className="text-primary font-medium">创建关联笔记</span>
+                </Button>
+              </div>
+            </div>
+            {showRelatedMemoEditor && (
+              <div className="w-full mt-4">
+                <MemoEditor
+                  cacheKey={`${memo.name}-${memo.updateTime}-related`}
+                  placeholder="创建一个关联到当前笔记的新笔记..."
+                  initialRelations={[
+                    {
+                      memo: { name: "", snippet: "" },
+                      relatedMemo: { name: memo.name, snippet: memo.content.substring(0, 100) },
+                      type: MemoRelation_Type.REFERENCE,
+                    },
+                  ]}
+                  autoFocus
+                  onConfirm={handleRelatedMemoCreated}
+                  onCancel={() => setShowRelatedMemoEditor(false)}
+                />
+              </div>
+            )}
+          </div>
+          
           <div className="pt-8 pb-16 w-full">
             <h2 id="comments" className="sr-only">
               {t("memo.comment.self")}

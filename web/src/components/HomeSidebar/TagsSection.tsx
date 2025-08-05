@@ -1,13 +1,13 @@
 import { Edit3Icon, HashIcon, MoreVerticalIcon, TagsIcon, TrashIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import useLocalStorage from "react-use/lib/useLocalStorage";
 import { Switch } from "@/components/ui/switch";
 import { memoServiceClient } from "@/grpcweb";
 import { useDialog } from "@/hooks/useDialog";
 import { cn } from "@/lib/utils";
-import { userStore } from "@/store";
+import { userStore, memoStore } from "@/store";
 import memoFilterStore, { MemoFilter } from "@/store/memoFilter";
 import { useTranslate } from "@/utils/i18n";
 import RenameTagDialog from "../RenameTagDialog";
@@ -24,21 +24,60 @@ const TagsSection = observer((props: Props) => {
   const [treeMode, setTreeMode] = useLocalStorage<boolean>("tag-view-as-tree", false);
   const renameTagDialog = useDialog();
   const [selectedTag, setSelectedTag] = useState<string>("");
-  const tags = Object.entries(userStore.state.tagCount)
+  const allTags = Object.entries(userStore.state.tagCount)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .sort((a, b) => b[1] - a[1]);
 
+  // 根据标签过滤器过滤显示的标签
+  const filteredTags = useMemo(() => {
+    const tagFilters = memoFilterStore.getFiltersByFactor("tagSearch");
+    
+    if (tagFilters.length === 0) {
+      return allTags;
+    }
+    
+    // 获取所有选中的标签
+    const selectedTags = tagFilters.map((filter: MemoFilter) => filter.value);
+    
+    // 获取所有笔记
+    const allMemos = Object.values(memoStore.state.memoMapByName);
+    
+    // 找到包含所有选中标签的笔记
+    const memosWithAllSelectedTags = allMemos.filter(memo => {
+      if (!memo.tags) return false;
+      return selectedTags.every(selectedTag => memo.tags.includes(selectedTag));
+    });
+    
+    // 收集这些笔记中的所有标签
+    const relatedTagsSet = new Set<string>();
+    memosWithAllSelectedTags.forEach(memo => {
+      if (memo.tags) {
+        memo.tags.forEach(tag => {
+          relatedTagsSet.add(tag);
+        });
+      }
+    });
+    
+    // 过滤标签：只显示相关标签
+    return allTags.filter(([tag]) => relatedTagsSet.has(tag));
+  }, [allTags, memoFilterStore.filters, memoStore.state.stateId]);
+
   const handleTagClick = (tag: string) => {
     const isActive = memoFilterStore.getFiltersByFactor("tagSearch").some((filter: MemoFilter) => filter.value === tag);
+    
     if (isActive) {
+      // 如果标签已经激活，移除过滤器
       memoFilterStore.removeFilter((f: MemoFilter) => f.factor === "tagSearch" && f.value === tag);
     } else {
+      // 如果标签未激活，添加过滤器
       memoFilterStore.addFilter({
         factor: "tagSearch",
         value: tag,
       });
     }
   };
+
+
 
   const handleRenameTag = (tag: string) => {
     setSelectedTag(tag);
@@ -65,7 +104,7 @@ const TagsSection = observer((props: Props) => {
     <div className="flex flex-col justify-start items-start w-full mt-3 px-1 h-auto shrink-0 flex-nowrap hide-scrollbar">
       <div className="flex flex-row justify-between items-center w-full gap-1 mb-1 text-sm leading-6 text-muted-foreground select-none">
         <span>{t("common.tags")}</span>
-        {tags.length > 0 && (
+        {allTags.length > 0 && (
           <Popover>
             <PopoverTrigger>
               <MoreVerticalIcon className="w-4 h-auto shrink-0 text-muted-foreground" />
@@ -79,15 +118,15 @@ const TagsSection = observer((props: Props) => {
           </Popover>
         )}
       </div>
-      {tags.length > 0 ? (
+      {filteredTags.length > 0 ? (
         treeMode ? (
-          <TagTree tagAmounts={tags} />
+          <TagTree tagAmounts={filteredTags} />
         ) : (
-          <div className="w-full flex flex-row justify-start items-center relative flex-wrap gap-x-2 gap-y-1">
-            {tags.map(([tag, amount]) => (
+          <div className="w-full flex flex-col justify-start items-start relative gap-y-1">
+            {filteredTags.map(([tag, amount]) => (
               <div
                 key={tag}
-                className="shrink-0 w-auto max-w-full text-sm rounded-md leading-6 flex flex-row justify-start items-center select-none hover:opacity-80 text-muted-foreground"
+                className="shrink-0 w-auto max-w-full text-sm rounded-md leading-6 flex flex-row justify-start items-center select-none hover:opacity-80 text-muted-foreground mb-1"
               >
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

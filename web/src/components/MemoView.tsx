@@ -1,4 +1,4 @@
-import { BookmarkIcon, EyeOffIcon, MessageCircleMoreIcon } from "lucide-react";
+import { BookmarkIcon, EyeOffIcon, MessageCircleMoreIcon, HashIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { memo, useCallback, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -7,7 +7,8 @@ import useAsyncEffect from "@/hooks/useAsyncEffect";
 import useCurrentUser from "@/hooks/useCurrentUser";
 import useNavigateTo from "@/hooks/useNavigateTo";
 import { cn } from "@/lib/utils";
-import { memoStore, userStore, workspaceStore } from "@/store";
+import { memoStore, memoDetailStore, userStore, workspaceStore } from "@/store";
+import memoFilterStore, { MemoFilter } from "@/store/memoFilter";
 import { State } from "@/types/proto/api/v1/common";
 import { Memo, MemoRelation_Type, Visibility } from "@/types/proto/api/v1/memo_service";
 import { useTranslate } from "@/utils/i18n";
@@ -19,7 +20,7 @@ import MemoContent from "./MemoContent";
 import MemoEditor from "./MemoEditor";
 import MemoLocationView from "./MemoLocationView";
 import MemoReactionistView from "./MemoReactionListView";
-import MemoRelationListView from "./MemoRelationListView";
+
 import PreviewImageDialog from "./PreviewImageDialog";
 import ReactionSelector from "./ReactionSelector";
 import UserAvatar from "./UserAvatar";
@@ -34,6 +35,7 @@ interface Props {
   showNsfwContent?: boolean;
   className?: string;
   parentPage?: string;
+  disableClick?: boolean;
 }
 
 const MemoView: React.FC<Props> = observer((props: Props) => {
@@ -52,7 +54,6 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
     index: 0,
   });
   const workspaceMemoRelatedSetting = workspaceStore.state.memoRelatedSetting;
-  const referencedMemos = memo.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE);
   const commentAmount = memo.relations.filter(
     (relation) => relation.type === MemoRelation_Type.COMMENT && relation.relatedMemo?.name === memo.name,
   ).length;
@@ -72,12 +73,29 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
   }, []);
 
   const handleGotoMemoDetailPage = useCallback(() => {
-    navigateTo(`/${memo.name}`, {
-      state: {
-        from: parentPage,
-      },
-    });
-  }, [memo.name, parentPage]);
+    // 如果在主页或笔记页面，则在侧边栏显示详情
+    if (location.pathname === "/" || location.pathname === "/note") {
+      memoDetailStore.setSelectedMemo(memo);
+    } else {
+      // 其他页面保持原有跳转逻辑
+      navigateTo(`/${memo.name}`, {
+        state: {
+          from: parentPage,
+        },
+      });
+    }
+  }, [memo, location.pathname, parentPage]);
+
+  const handleMemoClick = useCallback(() => {
+    // 如果禁用点击，则不处理
+    if (props.disableClick) {
+      return;
+    }
+    // 如果在主页或笔记页面，点击笔记内容区域时显示详情
+    if (location.pathname === "/" || location.pathname === "/note") {
+      memoDetailStore.setSelectedMemo(memo);
+    }
+  }, [memo, location.pathname, props.disableClick]);
 
   const handleMemoContentClick = useCallback(async (e: React.MouseEvent) => {
     const targetEl = e.target as HTMLElement;
@@ -106,23 +124,29 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
     userStore.setStatsStateId();
   };
 
-  const onPinIconClick = async () => {
-    if (memo.pinned) {
-      await memoStore.updateMemo(
-        {
-          name: memo.name,
-          pinned: false,
-        },
-        ["pinned"],
-      );
-    }
-  };
+  const handleTogglePinned = useCallback(async () => {
+    await memoStore.updateMemo(
+      {
+        name: memo.name,
+        pinned: !memo.pinned,
+      },
+      ["pinned"],
+    );
+  }, [memo.name, memo.pinned]);
 
-  const displayTime = isArchived ? (
-    memo.displayTime?.toLocaleString()
-  ) : (
-    <relative-time datetime={memo.displayTime?.toISOString()} format={relativeTimeFormat}></relative-time>
-  );
+  const handleTagClick = useCallback((tag: string) => {
+    const isActive = memoFilterStore.getFiltersByFactor("tagSearch").some((filter: MemoFilter) => filter.value === tag);
+    if (isActive) {
+      memoFilterStore.removeFilter((f: MemoFilter) => f.factor === "tagSearch" && f.value === tag);
+    } else {
+      memoFilterStore.addFilter({
+        factor: "tagSearch",
+        value: tag,
+      });
+    }
+  }, []);
+
+  const displayTime = memo.displayTime?.toLocaleString();
 
   return showEditor ? (
     <MemoEditor
@@ -137,8 +161,10 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
     <div
       className={cn(
         "group relative flex flex-col justify-start items-start bg-card w-full px-4 py-3 mb-2 gap-2 text-card-foreground rounded-lg border border-border transition-colors",
+        !props.disableClick && "cursor-pointer hover:bg-accent/50",
         className,
       )}
+      onClick={!props.disableClick ? handleMemoClick : undefined}
     >
       <div className="w-full flex flex-row justify-between items-center gap-2">
         <div className="w-auto max-w-[calc(100%-8rem)] grow flex flex-row justify-start items-center">
@@ -211,7 +237,7 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="cursor-pointer">
-                    <BookmarkIcon className="w-4 h-auto text-primary" onClick={onPinIconClick} />
+                    <BookmarkIcon className="w-4 h-auto text-primary" onClick={handleTogglePinned} />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -224,6 +250,28 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
             <span className="cursor-pointer">
               <EyeOffIcon className="w-4 h-auto text-primary" onClick={() => setShowNSFWContent(false)} />
             </span>
+          )}
+          {memo.tags && memo.tags.length > 0 && (
+            <div className="flex flex-row gap-1 items-center">
+              {memo.tags.map((tag) => {
+                const isActive = memoFilterStore.getFiltersByFactor("tagSearch").some((filter: MemoFilter) => filter.value === tag);
+                return (
+                  <span
+                    key={tag}
+                    className={cn(
+                      "inline-flex items-center px-1.5 py-0.5 rounded text-xs cursor-pointer transition-colors",
+                      isActive 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                    )}
+                    onClick={() => handleTagClick(tag)}
+                  >
+                    <HashIcon className="w-3 h-3 mr-0.5" />
+                    {tag}
+                  </span>
+                );
+              })}
+            </div>
           )}
           <MemoActionMenu memo={memo} readonly={readonly} onEdit={() => setShowEditor(true)} />
         </div>
@@ -239,6 +287,7 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
           memoName={memo.name}
           nodes={memo.nodes}
           readonly={readonly}
+          hideTags={true}
           onClick={handleMemoContentClick}
           onDoubleClick={handleMemoContentDoubleClick}
           compact={memo.pinned ? false : props.compact} // Always show full content when pinned.
@@ -246,7 +295,6 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
         />
         {memo.location && <MemoLocationView location={memo.location} />}
         <MemoAttachmentListView attachments={memo.attachments} />
-        <MemoRelationListView memo={memo} relations={referencedMemos} parentPage={parentPage} />
         <MemoReactionistView memo={memo} reactions={memo.reactions} />
       </div>
       {nsfw && !showNSFWContent && (

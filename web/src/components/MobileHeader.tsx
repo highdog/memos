@@ -1,4 +1,3 @@
-import useWindowScroll from "react-use/lib/useWindowScroll";
 import useResponsiveWidth from "@/hooks/useResponsiveWidth";
 import { cn } from "@/lib/utils";
 import NavigationDrawer from "./NavigationDrawer";
@@ -11,13 +10,11 @@ interface Props {
 const MobileHeader = (props: Props) => {
   const { className, children } = props;
   const { sm } = useResponsiveWidth();
-  const { y: offsetTop } = useWindowScroll();
 
   return (
     <div
       className={cn(
-        "sticky top-0 pt-3 pb-2 sm:pt-2 px-4 sm:px-6 sm:mb-1 bg-background bg-opacity-80 backdrop-blur-lg flex md:hidden flex-row justify-between items-center w-full h-auto flex-nowrap shrink-0 z-1",
-        offsetTop > 0 && "shadow-md",
+        "pt-3 pb-2 sm:pt-2 px-4 sm:px-6 sm:mb-1 bg-background border-b border-border flex md:hidden flex-row justify-between items-center w-full h-auto flex-nowrap shrink-0 z-1",
         className,
       )}
     >

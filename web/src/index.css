@@ -18,3 +18,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* 隐藏滚动条但保持滚动功能 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+  
+  /* 滚动时显示的滚动条样式 */
+  .scrollbar-auto {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)) transparent;
+  }
+  .scrollbar-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-auto::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground));
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .scrollbar-auto:hover::-webkit-scrollbar-thumb {
+    opacity: 0.7;
+  }
+  .scrollbar-auto::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--foreground));
+    opacity: 1;
+  }
+}

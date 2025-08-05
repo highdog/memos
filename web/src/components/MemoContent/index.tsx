@@ -18,6 +18,7 @@ interface Props {
   compact?: boolean;
   readonly?: boolean;
   disableFilter?: boolean;
+  hideTags?: boolean;
   // embeddedMemos is a set of memo resource names that are embedded in the current memo.
   // This is used to prevent infinite loops when a memo embeds itself.
   embeddedMemos?: Set<string>;
@@ -79,6 +80,7 @@ const MemoContent = observer((props: Props) => {
         memoName: memoName,
         readonly: !allowEdit,
         disableFilter: props.disableFilter,
+        hideTags: props.hideTags,
         embeddedMemos: embeddedMemos || new Set(),
         parentPage: props.parentPage,
       }}

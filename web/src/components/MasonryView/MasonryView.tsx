@@ -160,7 +160,7 @@ const MasonryView = (props: Props) => {
       }}
     >
       {Array.from({ length: columns }).map((_, columnIndex) => (
-        <div key={columnIndex} className="min-w-0 mx-auto w-full max-w-2xl">
+        <div key={columnIndex} className="min-w-0 w-full">
           {/* Prefix element (like memo editor) goes in first column */}
           {props.prefixElement && columnIndex === 0 && <div ref={prefixElementRef}>{props.prefixElement}</div>}
 

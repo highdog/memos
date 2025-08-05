@@ -1,4 +1,4 @@
-import { LinkIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 import { memoStore } from "@/store";
@@ -37,11 +37,11 @@ const RelationListView = observer((props: Props) => {
             return (
               <div
                 key={memo.name}
-                className="w-auto max-w-xs overflow-hidden flex flex-row justify-start items-center bg-popover hover:opacity-80 rounded-md text-sm p-1 px-2 text-muted-foreground cursor-pointer hover:line-through"
+                className="w-auto max-w-xs overflow-hidden flex flex-row justify-start items-center hover:opacity-80 rounded-md text-sm p-1 cursor-pointer hover:line-through"
                 onClick={() => handleDeleteRelation(memo)}
               >
-                <LinkIcon className="w-4 h-auto shrink-0 opacity-80" />
-                <span className="mx-1 max-w-full text-ellipsis whitespace-nowrap overflow-hidden">{memo.snippet}</span>
+                <span className="text-blue-600 font-semibold mr-1">@</span>
+                <span className="mx-1 max-w-full text-ellipsis whitespace-nowrap overflow-hidden text-gray-500">{memo.snippet}</span>
                 <XIcon className="w-4 h-auto cursor-pointer shrink-0 opacity-60 hover:opacity-100" />
               </div>
             );

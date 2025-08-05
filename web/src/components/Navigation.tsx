@@ -1,4 +1,4 @@
-import { EarthIcon, LibraryIcon, PaperclipIcon, UserCircleIcon } from "lucide-react";
+import { EarthIcon, LibraryIcon, PaperclipIcon, UserCircleIcon, FileTextIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
@@ -61,6 +61,8 @@ const Navigation = observer((props: Props) => {
     icon: <UserCircleIcon className="w-6 h-auto shrink-0" />,
   };
 
+
+
   const navLinks: NavLinkItem[] = currentUser ? [homeNavLink, exploreNavLink, attachmentsNavLink] : [exploreNavLink, signInNavLink];
 
   return (
@@ -102,6 +104,39 @@ const Navigation = observer((props: Props) => {
             {!props.collapsed && <span className="ml-3 truncate">{navLink.title}</span>}
           </NavLink>
         ))}
+        
+        {/* Notes View Link - Only show for logged in users */}
+        {currentUser && (
+          <NavLink
+            className={({ isActive }) =>
+              cn(
+                "px-2 py-2 rounded-2xl border flex flex-row items-center text-lg text-sidebar-foreground transition-colors",
+                collapsed ? "" : "w-full px-4",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-accent-border drop-shadow"
+                  : "border-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:border-sidebar-accent-border opacity-80",
+              )
+            }
+            to={Routes.NOTE}
+            viewTransition
+          >
+            {props.collapsed ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div><FileTextIcon className="w-6 h-auto shrink-0" /></div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>笔记视图</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <FileTextIcon className="w-6 h-auto shrink-0" />
+            )}
+            {!props.collapsed && <span className="ml-3 truncate">笔记视图</span>}
+          </NavLink>
+        )}
       </div>
       {currentUser && (
         <div className={cn("w-full flex flex-col justify-end", props.collapsed ? "items-center" : "items-start pl-3")}>

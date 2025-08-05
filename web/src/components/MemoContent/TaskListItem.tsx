@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { markdownServiceClient } from "@/grpcweb";
 import { cn } from "@/lib/utils";
 import { memoStore } from "@/store";
-import { Node, TaskListItemNode } from "@/types/proto/api/v1/markdown_service";
+import { Node, TaskListItemNode, NodeType } from "@/types/proto/api/v1/markdown_service";
 import Renderer from "./Renderer";
 import { RendererContext } from "./types";
 
@@ -20,6 +20,8 @@ interface Props {
 const TaskListItem = observer(({ node, complete, children }: Props) => {
   const context = useContext(RendererContext);
 
+
+
   const handleCheckboxChange = async (on: boolean) => {
     if (context.readonly || !context.memoName) {
       return;
@@ -27,13 +29,22 @@ const TaskListItem = observer(({ node, complete, children }: Props) => {
 
     (node.taskListItemNode as TaskListItemNode)!.complete = on;
     const { markdown } = await markdownServiceClient.restoreMarkdownNodes({ nodes: context.nodes });
-    await memoStore.updateMemo(
-      {
-        name: context.memoName,
-        content: markdown,
-      },
-      ["content"],
-    );
+    
+    console.log('TaskListItem: checkbox changed, updating content');
+    
+    // 只更新笔记内容和时间，不再依赖hasTaskList属性
+    const updateData = {
+      name: context.memoName,
+      content: markdown,
+      updateTime: new Date(),
+    };
+    
+    try {
+      await memoStore.updateMemo(updateData, ["content", "update_time"]);
+      console.log('TaskListItem: update completed successfully');
+    } catch (error) {
+      console.error('TaskListItem: update failed =', error);
+    }
   };
 
   return (

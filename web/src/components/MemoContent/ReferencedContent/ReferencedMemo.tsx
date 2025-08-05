@@ -44,10 +44,11 @@ const ReferencedMemo = observer(({ resourceId: uid, params: paramsStr }: Props) 
 
   return (
     <span
-      className="text-primary whitespace-nowrap cursor-pointer underline break-all hover:text-primary/80 decoration-1"
+      className="whitespace-nowrap cursor-pointer break-all hover:opacity-80"
       onClick={handleGotoMemoDetailPage}
     >
-      {displayContent}
+      <span className="text-blue-600 font-semibold">@</span>
+      <span className="text-gray-500 underline decoration-1">{displayContent}</span>
     </span>
   );
 });

@@ -9,6 +9,7 @@ interface Context {
   memoName?: string;
   readonly?: boolean;
   disableFilter?: boolean;
+  hideTags?: boolean;
   parentPage?: string;
 }
 

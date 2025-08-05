@@ -11,6 +11,7 @@ import { memoStore, viewStore } from "@/store";
 import { State } from "@/types/proto/api/v1/common";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { useTranslate } from "@/utils/i18n";
+import { cn } from "@/lib/utils";
 import Empty from "../Empty";
 import MasonryView from "../MasonryView";
 import MemoEditor from "../MemoEditor";
@@ -29,11 +30,13 @@ const PagedMemoList = observer((props: Props) => {
   const { md } = useResponsiveWidth();
 
   // Simplified state management - separate state variables for clarity
-  const [isRequesting, setIsRequesting] = useState(true);
+  const [isRequesting, setIsRequesting] = useState(false);
   const [nextPageToken, setNextPageToken] = useState("");
+  const [isScrolling, setIsScrolling] = useState(false);
 
   // Ref to manage auto-fetch timeout to prevent memory leaks
   const autoFetchTimeoutRef = useRef<number | null>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   // Apply custom sorting if provided, otherwise use store memos directly
   const sortedMemoList = props.listSort ? props.listSort(memoStore.state.memos) : memoStore.state.memos;
@@ -60,13 +63,12 @@ const PagedMemoList = observer((props: Props) => {
     }
   };
 
-  // Helper function to check if page has enough content to be scrollable
-  const isPageScrollable = () => {
-    const documentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-    return documentHeight > window.innerHeight + 100; // 100px buffer for safe measure
+  // Helper function to check if container has enough content to be scrollable
+  const isContainerScrollable = (container: HTMLElement) => {
+    return container.scrollHeight > container.clientHeight + 100; // 100px buffer for safe measure
   };
 
-  // Auto-fetch more content if page isn't scrollable and more data is available
+  // Auto-fetch more content if container isn't scrollable and more data is available
   const checkAndFetchIfNeeded = useCallback(async () => {
     // Clear any pending auto-fetch timeout
     if (autoFetchTimeoutRef.current) {
@@ -76,8 +78,11 @@ const PagedMemoList = observer((props: Props) => {
     // Wait for DOM to update before checking scrollability
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // Only fetch if: page isn't scrollable, we have more data, not currently loading, and have memos
-    const shouldFetch = !isPageScrollable() && nextPageToken && !isRequesting && sortedMemoList.length > 0;
+    // Find the scrollable container (the memo list container)
+    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    
+    // Only fetch if: container isn't scrollable, we have more data, not currently loading, and have memos
+    const shouldFetch = scrollContainer && !isContainerScrollable(scrollContainer) && nextPageToken && !isRequesting && sortedMemoList.length > 0;
 
     if (shouldFetch) {
       await fetchMoreMemos(nextPageToken);
@@ -114,55 +119,86 @@ const PagedMemoList = observer((props: Props) => {
       if (autoFetchTimeoutRef.current) {
         clearTimeout(autoFetchTimeoutRef.current);
       }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, []);
 
-  // Infinite scroll: fetch more when user scrolls near bottom
+  // Infinite scroll: fetch more when user scrolls near bottom of container
   useEffect(() => {
     if (!nextPageToken) return;
 
-    const handleScroll = () => {
-      const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 300;
+    const handleScroll = (event: Event) => {
+      const target = event.target as HTMLElement;
+      const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 300;
       if (nearBottom && !isRequesting) {
         fetchMoreMemos(nextPageToken);
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    // Find the scrollable container (the memo list container)
+    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll);
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
+    }
   }, [nextPageToken, isRequesting]);
 
   const children = (
-    <div className="flex flex-col justify-start items-start w-full max-w-full">
-      <MasonryView
-        memoList={sortedMemoList}
-        renderer={props.renderer}
-        prefixElement={showMemoEditor ? <MemoEditor className="mb-2" cacheKey="home-memo-editor" /> : undefined}
-        listMode={viewStore.state.layout === "LIST"}
-      />
-
-      {/* Loading indicator */}
-      {isRequesting && (
-        <div className="w-full flex flex-row justify-center items-center my-4">
-          <LoaderIcon className="animate-spin text-muted-foreground" />
+    <div className="flex flex-col h-full w-full max-w-full">
+      {/* Fixed memo editor at top */}
+      {showMemoEditor && (
+        <div className="flex-shrink-0 mb-2">
+          <MemoEditor className="" cacheKey="home-memo-editor" />
         </div>
       )}
+      
+      {/* Scrollable memo list */}
+      <div 
+        className={cn(
+          "flex-1 overflow-y-auto transition-all duration-300",
+          isScrolling ? "scrollbar-auto" : "scrollbar-hide"
+        )}
+        onScroll={(e) => {
+          setIsScrolling(true);
+          if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+          }
+          scrollTimeoutRef.current = window.setTimeout(() => {
+            setIsScrolling(false);
+          }, 1000);
+        }}
+      >
+        <MasonryView
+          memoList={sortedMemoList}
+          renderer={props.renderer}
+          listMode={viewStore.state.layout === "LIST"}
+        />
 
-      {/* Empty state or back-to-top button */}
-      {!isRequesting && (
-        <>
-          {!nextPageToken && sortedMemoList.length === 0 ? (
-            <div className="w-full mt-12 mb-8 flex flex-col justify-center items-center italic">
-              <Empty />
-              <p className="mt-2 text-muted-foreground">{t("message.no-data")}</p>
-            </div>
-          ) : (
-            <div className="w-full opacity-70 flex flex-row justify-center items-center my-4">
-              <BackToTop />
-            </div>
-          )}
-        </>
-      )}
+        {/* Loading indicator */}
+        {isRequesting && (
+          <div className="w-full flex flex-row justify-center items-center my-4">
+            <LoaderIcon className="animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Empty state or back-to-top button */}
+        {!isRequesting && (
+          <>
+            {!nextPageToken && sortedMemoList.length === 0 ? (
+              <div className="w-full mt-12 mb-8 flex flex-col justify-center items-center italic">
+                <Empty />
+                <p className="mt-2 text-muted-foreground">{t("message.no-data")}</p>
+              </div>
+            ) : (
+              <div className="w-full opacity-70 flex flex-row justify-center items-center my-4">
+                <BackToTop />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 
@@ -194,20 +230,28 @@ const BackToTop = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const shouldShow = window.scrollY > 400;
+    const handleScroll = (event: Event) => {
+      const target = event.target as HTMLElement;
+      const shouldShow = target.scrollTop > 400;
       setIsVisible(shouldShow);
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    // Find the scrollable container (the memo list container)
+    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll);
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
+    }
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    const scrollContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
   };
 
   // Don't render if not visible
