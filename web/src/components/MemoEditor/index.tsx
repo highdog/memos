@@ -23,6 +23,7 @@ import DateTimeInput from "../DateTimeInput";
 import AddMemoRelationPopover from "./ActionButton/AddMemoRelationPopover";
 import LocationSelector from "./ActionButton/LocationSelector";
 import MarkdownMenu from "./ActionButton/MarkdownMenu";
+import ScheduleButton from "./ActionButton/ScheduleButton";
 import TagSelector from "./ActionButton/TagSelector";
 import UploadAttachmentButton from "./ActionButton/UploadAttachmentButton";
 import VisibilitySelector from "./ActionButton/VisibilitySelector";
@@ -504,6 +505,7 @@ const MemoEditor = observer((props: Props) => {
         <div className="relative w-full flex flex-row justify-between items-center py-1 gap-2" onFocus={(e) => e.stopPropagation()}>
           <div className="flex flex-row justify-start items-center opacity-60 shrink-1">
             <TagSelector editorRef={editorRef} />
+            <ScheduleButton editorRef={editorRef} />
             <MarkdownMenu editorRef={editorRef} />
             <UploadAttachmentButton isUploading={state.isUploadingAttachment} />
             <AddMemoRelationPopover />

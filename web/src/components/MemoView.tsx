@@ -1,6 +1,6 @@
 import { BookmarkIcon, EyeOffIcon, MessageCircleMoreIcon, HashIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import useAsyncEffect from "@/hooks/useAsyncEffect";
@@ -20,6 +20,7 @@ import MemoContent from "./MemoContent";
 import MemoEditor from "./MemoEditor";
 import MemoLocationView from "./MemoLocationView";
 import MemoReactionistView from "./MemoReactionListView";
+import MemoReferencesView from "./MemoReferencesView";
 
 import PreviewImageDialog from "./PreviewImageDialog";
 import ReactionSelector from "./ReactionSelector";
@@ -36,6 +37,10 @@ interface Props {
   className?: string;
   parentPage?: string;
   disableClick?: boolean;
+  onEdit?: () => void;
+  onEditComplete?: () => void;
+  inDialog?: boolean;
+  forceEdit?: boolean;
 }
 
 const MemoView: React.FC<Props> = observer((props: Props) => {
@@ -71,6 +76,13 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
     const user = await userStore.getOrFetchUserByName(memo.creator);
     setCreator(user);
   }, []);
+
+  // 监听forceEdit属性，当为true时进入编辑模式
+  useEffect(() => {
+    if (props.forceEdit && !readonly) {
+      setShowEditor(true);
+    }
+  }, [props.forceEdit, readonly]);
 
   const handleGotoMemoDetailPage = useCallback(() => {
     // 如果在主页或笔记页面，则在侧边栏显示详情
@@ -119,10 +131,27 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
     }
   }, []);
 
-  const onEditorConfirm = () => {
+  const onEditorConfirm = async (memoName: string) => {
     setShowEditor(false);
     userStore.setStatsStateId();
+    
+    // 如果当前笔记是在详情弹窗中显示的，则更新 memoDetailStore 中的数据
+    if (memoDetailStore.selectedMemo && memoDetailStore.selectedMemo.name === memo.name) {
+      try {
+        const updatedMemo = await memoStore.getOrFetchMemoByName(memoName, { skipCache: true });
+        memoDetailStore.updateSelectedMemo(updatedMemo);
+      } catch (error) {
+        console.error('Failed to refresh memo in detail store:', error);
+      }
+    }
+    
+    props.onEditComplete?.();
   };
+
+  const onEditorCancel = useCallback(() => {
+    setShowEditor(false);
+    props.onEditComplete?.();
+  }, [props.onEditComplete]);
 
   const handleTogglePinned = useCallback(async () => {
     await memoStore.updateMemo(
@@ -155,19 +184,24 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
       cacheKey={`inline-memo-editor-${memo.name}`}
       memoName={memo.name}
       onConfirm={onEditorConfirm}
-      onCancel={() => setShowEditor(false)}
+      onCancel={onEditorCancel}
     />
   ) : (
     <div
       className={cn(
         "group relative flex flex-col justify-start items-start bg-card w-full px-4 py-3 mb-2 gap-2 text-card-foreground rounded-lg border border-border transition-colors",
-        !props.disableClick && "cursor-pointer hover:bg-accent/50",
+        !props.disableClick && "hover:bg-accent/50",
         className,
       )}
-      onClick={!props.disableClick ? handleMemoClick : undefined}
     >
       <div className="w-full flex flex-row justify-between items-center gap-2">
-        <div className="w-auto max-w-[calc(100%-8rem)] grow flex flex-row justify-start items-center">
+        <div 
+          className={cn(
+            "w-auto max-w-[calc(100%-8rem)] grow flex flex-row justify-start items-center",
+            !props.disableClick && "cursor-pointer"
+          )}
+          onClick={!props.disableClick ? handleMemoClick : undefined}
+        >
           {props.showCreator && creator ? (
             <div className="w-full flex flex-row justify-start items-center">
               <Link
@@ -273,14 +307,28 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
               })}
             </div>
           )}
-          <MemoActionMenu memo={memo} readonly={readonly} onEdit={() => setShowEditor(true)} />
+          <MemoActionMenu 
+            memo={memo} 
+            readonly={readonly} 
+            onEdit={() => {
+              if (props.inDialog && props.onEdit) {
+                // 在弹框中且有外部编辑回调，使用外部回调
+                props.onEdit();
+              } else {
+                // 其他情况都直接原地编辑
+                setShowEditor(true);
+              }
+            }} 
+          />
         </div>
       </div>
       <div
         className={cn(
           "w-full flex flex-col justify-start items-start gap-2",
           nsfw && !showNSFWContent && "blur-lg transition-all duration-200",
+          !props.disableClick && "cursor-pointer",
         )}
+        onClick={!props.disableClick ? handleMemoClick : undefined}
       >
         <MemoContent
           key={`${memo.name}-${memo.updateTime}`}
@@ -296,6 +344,7 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
         {memo.location && <MemoLocationView location={memo.location} />}
         <MemoAttachmentListView attachments={memo.attachments} />
         <MemoReactionistView memo={memo} reactions={memo.reactions} />
+        <MemoReferencesView memo={memo} />
       </div>
       {nsfw && !showNSFWContent && (
         <>

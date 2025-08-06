@@ -112,7 +112,7 @@ const MemoDetail = observer(() => {
         </MobileHeader>
       )}
       <div className={cn("w-full flex flex-row justify-start items-start px-4 sm:px-6 gap-4")}>
-        <div className={cn(md ? "w-[calc(100%-14rem)]" : "w-full")}>
+        <div className={cn(md ? "w-2/3" : "w-full")}>
           {parentMemo && (
             <div className="w-auto inline-block mb-2">
               <Link
@@ -280,7 +280,7 @@ const MemoDetail = observer(() => {
           </div>
         </div>
         {md && (
-          <div className="sticky top-0 left-0 shrink-0 -mt-6 w-56 h-full">
+          <div className="sticky top-0 left-0 shrink-0 -mt-6 w-1/3 h-full">
             <MemoDetailSidebar className="py-6" memo={memo} parentPage={locationState?.from} />
           </div>
         )}

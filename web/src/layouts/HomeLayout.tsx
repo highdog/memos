@@ -16,8 +16,8 @@ const HomeLayout = observer(() => {
   const location = useLocation();
   const { isDetailVisible } = memoDetailStore;
   
-  // 判断是否在主页且选中了笔记
-  const shouldHideSidebar = location.pathname === "/" && isDetailVisible;
+  // 左侧边栏始终显示，不因为笔记详情而隐藏
+  const shouldHideSidebar = false;
 
   useDebounce(
     async () => {

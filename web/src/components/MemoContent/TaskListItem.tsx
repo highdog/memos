@@ -30,17 +30,17 @@ const TaskListItem = observer(({ node, complete, children }: Props) => {
     (node.taskListItemNode as TaskListItemNode)!.complete = on;
     const { markdown } = await markdownServiceClient.restoreMarkdownNodes({ nodes: context.nodes });
     
-    console.log('TaskListItem: checkbox changed, updating content');
+    console.log('TaskListItem: checkbox changed, updating content and create time');
     
-    // 只更新笔记内容和时间，不再依赖hasTaskList属性
+    // 更新笔记内容和创建时间
     const updateData = {
       name: context.memoName,
       content: markdown,
-      updateTime: new Date(),
+      createTime: new Date(),
     };
     
     try {
-      await memoStore.updateMemo(updateData, ["content", "update_time"]);
+      await memoStore.updateMemo(updateData, ["content", "create_time"]);
       console.log('TaskListItem: update completed successfully');
     } catch (error) {
       console.error('TaskListItem: update failed =', error);

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import MemoEditor from "@/components/MemoEditor";
 import MemoView from "@/components/MemoView";
 import { cn } from "@/lib/utils";
-import { memoStore } from "@/store";
+import { memoStore, memoDetailStore } from "@/store";
 import { Memo, MemoRelation_Type } from "@/types/proto/api/v1/memo_service";
 
 interface Props {
@@ -31,7 +31,13 @@ const MemoDetailSidebar = ({ memo, className, parentPage }: Props) => {
 
   const handleRelatedMemoCreated = async (relatedMemoName: string) => {
     await memoStore.getOrFetchMemoByName(relatedMemoName);
-    await memoStore.getOrFetchMemoByName(memo.name, { skipCache: true });
+    const updatedMemo = await memoStore.getOrFetchMemoByName(memo.name, { skipCache: true });
+    
+    // 如果当前笔记是在详情弹窗中显示的，则更新 memoDetailStore 中的数据
+    if (memoDetailStore.selectedMemo && memoDetailStore.selectedMemo.name === memo.name) {
+      memoDetailStore.updateSelectedMemo(updatedMemo);
+    }
+    
     setShowRelatedMemoEditor(false);
   };
 

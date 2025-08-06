@@ -2,18 +2,17 @@ import dayjs from "dayjs";
 import { observer } from "mobx-react-lite";
 import { useMemo } from "react";
 import MemoView from "@/components/MemoView";
-import { MemoDetailSidebar } from "@/components/MemoDetailSidebar";
+import MemoDetailDialog from "@/components/MemoDetailDialog";
 import MobileHeader from "@/components/MobileHeader";
 import PagedMemoList from "@/components/PagedMemoList";
 import { TagsSidebarDrawer } from "@/components/TagsSidebar";
 import { TodoSidebar, TodoSidebarDrawer } from "@/components/Todo";
-import { Button } from "@/components/ui/button";
+
 import useCurrentUser from "@/hooks/useCurrentUser";
 import useResponsiveWidth from "@/hooks/useResponsiveWidth";
 import { viewStore, userStore, workspaceStore, memoDetailStore } from "@/store";
 import { extractUserIdFromName } from "@/store/common";
 import memoFilterStore from "@/store/memoFilter";
-import { X } from "lucide-react";
 import { State } from "@/types/proto/api/v1/common";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { NodeType } from "@/types/proto/api/v1/markdown_service";
@@ -30,7 +29,7 @@ const Home = observer(() => {
   const user = useCurrentUser();
   const { md, lg } = useResponsiveWidth();
   const selectedShortcut = userStore.state.shortcuts.find((shortcut) => getShortcutId(shortcut.name) === memoFilterStore.shortcut);
-  const { selectedMemo, isDetailVisible } = memoDetailStore;
+  const { selectedMemo, isDetailVisible, initialEditMode } = memoDetailStore;
 
   // 检查笔记是否有未完成的任务
   const hasIncompleteTasks = (memo: Memo): boolean => {
@@ -81,6 +80,7 @@ const Home = observer(() => {
 
   return (
     <div className="w-full h-full bg-background text-foreground flex flex-col overflow-hidden">
+
       {/* Mobile Header */}
       {!md && (
         <MobileHeader className="mb-4 flex-shrink-0">
@@ -91,7 +91,7 @@ const Home = observer(() => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content */}
-        <div className={`min-w-0 px-4 overflow-hidden ${isDetailVisible ? 'w-1/3' : 'flex-1'}`}>
+        <div className="flex-1 min-w-0 px-4 overflow-hidden">
           <div className="h-full overflow-y-auto">
             <PagedMemoList
               renderer={(memo: Memo) => <MemoView key={`${memo.name}-${memo.displayTime}`} memo={memo} showVisibility showPinned compact />}
@@ -111,43 +111,26 @@ const Home = observer(() => {
           </div>
         </div>
 
-        {/* Memo Detail Sidebar - Show when a memo is selected */}
-        {md && isDetailVisible && selectedMemo && (
-          <div className="w-2/3 pl-4 overflow-hidden border-l border-border">
-            <div className="h-full flex flex-col">
-              {/* Header with close button */}
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <h3 className="text-lg font-semibold">笔记详情</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => memoDetailStore.clearSelectedMemo()}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              {/* Memo content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <MemoView memo={selectedMemo} showVisibility showPinned disableClick />
-              </div>
-              
-              {/* Memo detail sidebar */}
-              <div className="border-t border-border">
-                <MemoDetailSidebar memo={selectedMemo} parentPage="/" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Right Sidebar - Todo only, show on medium screens and up, and when no memo is selected */}
-        {md && !isDetailVisible && (
+        {/* Right Sidebar - Todo only, show on medium screens and up */}
+        {md && (
           <div className="flex-shrink-0 w-80 pl-4 overflow-hidden">
             <TodoSidebar />
           </div>
         )}
       </div>
+
+      {/* Memo Detail Dialog */}
+      <MemoDetailDialog
+        open={isDetailVisible}
+        onOpenChange={(open) => {
+          if (!open) {
+            memoDetailStore.clearSelectedMemo();
+          }
+        }}
+        memo={selectedMemo}
+        parentPage="/"
+        initialEditMode={initialEditMode}
+      />
     </div>
   );
 });

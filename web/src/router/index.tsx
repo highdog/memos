@@ -20,6 +20,7 @@ const Attachments = lazy(() => import("@/pages/Attachments"));
 const Setting = lazy(() => import("@/pages/Setting"));
 const SignIn = lazy(() => import("@/pages/SignIn"));
 const SignUp = lazy(() => import("@/pages/SignUp"));
+const TaskList = lazy(() => import("@/pages/TaskList"));
 const UserProfile = lazy(() => import("@/pages/UserProfile"));
 const MemoDetailRedirect = lazy(() => import("./MemoDetailRedirect"));
 
@@ -32,6 +33,7 @@ export enum Routes {
   EXPLORE = "/explore",
   AUTH = "/auth",
   NOTE = "/note",
+  TASKS = "/tasks",
 }
 
 const router = createBrowserRouter([
@@ -109,13 +111,21 @@ const router = createBrowserRouter([
             element: <NotesLayout />,
             children: [
               {
-                path: Routes.NOTE,
-                element: (
-                  <Suspense fallback={<Loading />}>
-                    <NotesView />
-                  </Suspense>
-                ),
-              },
+            path: Routes.NOTE,
+            element: (
+              <Suspense fallback={<Loading />}>
+                <NotesView />
+              </Suspense>
+            ),
+          },
+          {
+            path: Routes.TASKS,
+            element: (
+              <Suspense fallback={<Loading />}>
+                <TaskList />
+              </Suspense>
+            ),
+          },
             ],
           },
           {

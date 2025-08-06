@@ -17,6 +17,7 @@ import { markdownServiceClient } from "@/grpcweb";
 import useNavigateTo from "@/hooks/useNavigateTo";
 import { memoStore, userStore } from "@/store";
 import { workspaceStore } from "@/store";
+import memoDetailStore from "@/store/memoDetail";
 import { State } from "@/types/proto/api/v1/common";
 import { NodeType } from "@/types/proto/api/v1/markdown_service";
 import { Memo } from "@/types/proto/api/v1/memo_service";
@@ -127,6 +128,12 @@ const MemoActionMenu = observer((props: Props) => {
     const confirmed = window.confirm(t("memo.delete-confirm"));
     if (confirmed) {
       await memoStore.deleteMemo(memo.name);
+      
+      // 如果删除的是当前显示的笔记详情，清除笔记详情状态
+      if (memoDetailStore.selectedMemo?.name === memo.name) {
+        memoDetailStore.clearSelectedMemo();
+      }
+      
       toast.success(t("message.deleted-successfully"));
       if (isInMemoDetailPage) {
         navigateTo("/");
