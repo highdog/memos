@@ -1,0 +1,19 @@
+services:
+  memos:
+    image: memos-local  # 如果使用registry方案，改为 your-dockerhub-username/memos:custom
+    container_name: memos
+    restart: unless-stopped
+    volumes:
+      - ~/.memos/:/var/opt/memos
+    ports:
+      - 5230:5230
+    environment:
+      - MEMOS_MODE=prod
+      - MEMOS_PORT=5230
+    # 可选：添加健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5230/api/v1/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,6 +1,6 @@
 services:
   memos:
-    image: neosmemo/memos:latest
+    image: memos-local
     container_name: memos
     volumes:
       - ~/.memos/:/var/opt/memos

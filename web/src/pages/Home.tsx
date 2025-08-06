@@ -7,6 +7,7 @@ import MobileHeader from "@/components/MobileHeader";
 import PagedMemoList from "@/components/PagedMemoList";
 import { TagsSidebarDrawer } from "@/components/TagsSidebar";
 import { TodoSidebar, TodoSidebarDrawer } from "@/components/Todo";
+import HomeHeader from "@/components/HomeHeader";
 
 import useCurrentUser from "@/hooks/useCurrentUser";
 import useResponsiveWidth from "@/hooks/useResponsiveWidth";
@@ -92,6 +93,9 @@ const Home = observer(() => {
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content */}
         <div className="flex-1 min-w-0 px-4 overflow-hidden">
+          {/* Header with Search and Tags */}
+          <HomeHeader />
+          
           <div className="h-full overflow-y-auto">
             <PagedMemoList
               renderer={(memo: Memo) => <MemoView key={`${memo.name}-${memo.displayTime}`} memo={memo} showVisibility showPinned compact />}
