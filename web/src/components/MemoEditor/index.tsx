@@ -23,6 +23,8 @@ import DateTimeInput from "../DateTimeInput";
 import AddMemoRelationPopover from "./ActionButton/AddMemoRelationPopover";
 import LocationSelector from "./ActionButton/LocationSelector";
 import MarkdownMenu from "./ActionButton/MarkdownMenu";
+import CheckinButton from "./ActionButton/CheckinButton";
+import GoalButton from "./ActionButton/GoalButton";
 import ScheduleButton from "./ActionButton/ScheduleButton";
 import TagSelector from "./ActionButton/TagSelector";
 import UploadAttachmentButton from "./ActionButton/UploadAttachmentButton";
@@ -506,6 +508,8 @@ const MemoEditor = observer((props: Props) => {
           <div className="flex flex-row justify-start items-center opacity-60 shrink-1">
             <TagSelector editorRef={editorRef} />
             <ScheduleButton editorRef={editorRef} />
+            <CheckinButton editorRef={editorRef} />
+            <GoalButton editorRef={editorRef} />
             <MarkdownMenu editorRef={editorRef} />
             <UploadAttachmentButton isUploading={state.isUploadingAttachment} />
             <AddMemoRelationPopover />

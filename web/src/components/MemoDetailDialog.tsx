@@ -4,6 +4,10 @@ import { Dialog, DialogContent, DialogOverlay, DialogPortal } from "@/components
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import MemoView from "./MemoView";
 import { MemoDetailSidebar } from "./MemoDetailSidebar";
+import CheckinDetailSidebar from "./MemoDetailSidebar/CheckinDetailSidebar";
+import GoalDetailSidebar from "./MemoDetailSidebar/GoalDetailSidebar";
+import { isCheckinMemo } from "@/utils/checkin";
+import { isGoalMemo } from "@/utils/goal";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 interface Props {
@@ -75,7 +79,13 @@ const MemoDetailDialog = observer(({ open, onOpenChange, memo, parentPage = "/",
               
               {/* Right side - Memo detail sidebar (1:1 ratio) */}
               <div className="flex-1 border-l border-border overflow-y-auto">
-                <MemoDetailSidebar memo={memo} parentPage={parentPage} />
+                {isCheckinMemo(memo) ? (
+                  <CheckinDetailSidebar memo={memo} parentPage={parentPage} />
+                ) : isGoalMemo(memo) ? (
+                  <GoalDetailSidebar memo={memo} parentPage={parentPage} />
+                ) : (
+                  <MemoDetailSidebar memo={memo} parentPage={parentPage} />
+                )}
               </div>
             </div>
           </div>

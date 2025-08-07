@@ -18,6 +18,7 @@ import { State } from "@/types/proto/api/v1/common";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { NodeType } from "@/types/proto/api/v1/markdown_service";
 import { WorkspaceSetting_Key } from "@/types/proto/api/v1/workspace_service";
+import { isCompletionMemo } from "@/utils/completion";
 
 // Helper function to extract shortcut ID from resource name
 // Format: users/{user}/shortcuts/{shortcut}
@@ -103,6 +104,7 @@ const Home = observer(() => {
                 memos
                   .filter((memo) => memo.state === State.NORMAL)
                   .filter((memo) => !hasIncompleteTasks(memo)) // 只过滤掉有未完成任务的笔记，已完成任务的笔记显示在主列表中
+                  .filter((memo) => !isCompletionMemo(memo)) // 过滤掉完成目标和完成打卡的笔记
                   .sort((a, b) =>
                     viewStore.state.orderByTimeAsc
                       ? dayjs(a.displayTime).unix() - dayjs(b.displayTime).unix()

@@ -6,15 +6,15 @@ interface Props {
 }
 
 const Text: React.FC<Props> = ({ content }: Props) => {
-  // 处理优先级符号转换
-  const renderContentWithPriority = (text: string) => {
-    // 使用正则表达式匹配优先级符号
-    const priorityRegex = /(!{1,3})/g;
-    const parts = text.split(priorityRegex);
+  // 处理符号转换（优先级、目标、打卡）
+  const renderContentWithSymbols = (text: string) => {
+    // 使用正则表达式匹配各种符号
+    const symbolRegex = /(!{1,3}|-\[0\]|-\[\*\])/g;
+    const parts = text.split(symbolRegex);
     
     return parts.map((part, index) => {
+      // 处理优先级符号
       if (part.match(/^!{1,3}$/)) {
-        // 根据感叹号数量确定优先级
         const priorityLevel = part.length;
         let priorityText = "";
         let priorityClass = "";
@@ -49,11 +49,37 @@ const Text: React.FC<Props> = ({ content }: Props) => {
         );
       }
       
+      // 处理目标符号 -[0]
+      if (part === "-[0]") {
+        return (
+          <span
+            key={index}
+            className="inline-block text-blue-600 font-medium mx-0.5"
+            title="目标"
+          >
+            🎯
+          </span>
+        );
+      }
+      
+      // 处理打卡符号 -[*]
+      if (part === "-[*]") {
+        return (
+          <span
+            key={index}
+            className="inline-block text-yellow-600 font-medium mx-0.5"
+            title="打卡"
+          >
+            ⭐
+          </span>
+        );
+      }
+      
       return part;
     });
   };
 
-  return <span>{renderContentWithPriority(content)}</span>;
+  return <span>{renderContentWithSymbols(content)}</span>;
 };
 
 export default Text;

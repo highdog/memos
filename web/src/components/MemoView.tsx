@@ -14,6 +14,8 @@ import { Memo, MemoRelation_Type, Visibility } from "@/types/proto/api/v1/memo_s
 import { useTranslate } from "@/utils/i18n";
 import { convertVisibilityToString } from "@/utils/memo";
 import { isSuperUser } from "@/utils/user";
+import CheckinButton from "./CheckinButton";
+import GoalButton from "./MemoView/GoalButton";
 import MemoActionMenu from "./MemoActionMenu";
 import MemoAttachmentListView from "./MemoAttachmentListView";
 import MemoContent from "./MemoContent";
@@ -21,7 +23,6 @@ import MemoEditor from "./MemoEditor";
 import MemoLocationView from "./MemoLocationView";
 import MemoReactionistView from "./MemoReactionListView";
 import MemoReferencesView from "./MemoReferencesView";
-
 import PreviewImageDialog from "./PreviewImageDialog";
 import ReactionSelector from "./ReactionSelector";
 import UserAvatar from "./UserAvatar";
@@ -307,6 +308,7 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
               })}
             </div>
           )}
+          <CheckinButton memo={memo} className="mr-1" />
           <MemoActionMenu 
             memo={memo} 
             readonly={readonly} 

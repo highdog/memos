@@ -233,23 +233,61 @@ func (c *CommonSQLConverter) handleElementInTags(ctx *ConvertContext, elementExp
 		return errors.Errorf("first argument must be a constant value for 'element in tags': %v", err)
 	}
 
-	// Use dialect-specific JSON contains logic
-	template := c.dialect.GetJSONContains("$.tags", "element")
-	sqlExpr := strings.Replace(template, "?", c.dialect.GetParameterPlaceholder(c.paramIndex), 1)
-	if _, err := ctx.Buffer.WriteString(sqlExpr); err != nil {
-		return err
-	}
-
-	// Handle args based on dialect
+	// Direct tag match condition
+	var directCondition string
+	var directArg any
+	
 	if _, ok := c.dialect.(*SQLiteDialect); ok {
 		// SQLite uses LIKE with pattern
-		ctx.Args = append(ctx.Args, fmt.Sprintf(`%%"%s"%%`, element))
+		directCondition = c.dialect.GetJSONLike("$.tags", "pattern")
+		directArg = fmt.Sprintf(`%%"%s"%%`, element)
 	} else {
-		// MySQL and PostgreSQL expect plain values
-		ctx.Args = append(ctx.Args, element)
+		// Use dialect-specific JSON contains logic
+		template := c.dialect.GetJSONContains("$.tags", "element")
+		directCondition = strings.Replace(template, "?", c.dialect.GetParameterPlaceholder(c.paramIndex), 1)
+		directArg = element
 	}
 	c.paramIndex++
 
+	// Referenced memo tag match condition
+	var referencedCondition string
+	var referencedArg any
+	tablePrefix := c.dialect.GetTablePrefix()
+	
+	if _, ok := c.dialect.(*SQLiteDialect); ok {
+		referencedCondition = fmt.Sprintf(`%s.id IN (
+			SELECT mr.memo_id 
+			FROM memo_relation mr 
+			JOIN memo rm ON mr.related_memo_id = rm.id 
+			WHERE mr.type = 'REFERENCE' AND rm.payload LIKE %s
+		)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+		referencedArg = fmt.Sprintf(`%%"%s"%%`, element)
+	} else if _, ok := c.dialect.(*PostgreSQLDialect); ok {
+		referencedCondition = fmt.Sprintf(`%s.id IN (
+			SELECT mr.memo_id 
+			FROM memo_relation mr 
+			JOIN memo rm ON mr.related_memo_id = rm.id 
+			WHERE mr.type = 'REFERENCE' AND rm.payload->'tags' @> jsonb_build_array(%s::json)
+		)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+		referencedArg = element
+	} else { // MySQL
+		referencedCondition = fmt.Sprintf(`%s.`+"`id`"+` IN (
+			SELECT mr.`+"`memo_id`"+` 
+			FROM `+"`memo_relation`"+` mr 
+			JOIN `+"`memo`"+` rm ON mr.`+"`related_memo_id`"+` = rm.`+"`id`"+` 
+			WHERE mr.`+"`type`"+` = 'REFERENCE' AND JSON_CONTAINS(JSON_EXTRACT(rm.`+"`payload`"+`, '$.tags'), %s)
+		)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+		referencedArg = fmt.Sprintf(`"%s"`, element)
+	}
+	c.paramIndex++
+
+	// Combine direct and referenced conditions with OR
+	combinedCondition := fmt.Sprintf("(%s OR %s)", directCondition, referencedCondition)
+	if _, err := ctx.Buffer.WriteString(combinedCondition); err != nil {
+		return err
+	}
+
+	ctx.Args = append(ctx.Args, directArg, referencedArg)
 	return nil
 }
 
@@ -258,17 +296,53 @@ func (c *CommonSQLConverter) handleTagInList(ctx *ConvertContext, values []any) 
 	args := []any{}
 
 	for _, v := range values {
+		// Direct tag match condition
+		var directCondition string
 		if _, ok := c.dialect.(*SQLiteDialect); ok {
-			subconditions = append(subconditions, c.dialect.GetJSONLike("$.tags", "pattern"))
+			directCondition = c.dialect.GetJSONLike("$.tags", "pattern")
 			args = append(args, fmt.Sprintf(`%%"%s"%%`, v))
 		} else {
 			// Replace ? with proper placeholder for each dialect
 			template := c.dialect.GetJSONContains("$.tags", "element")
-			sql := strings.Replace(template, "?", c.dialect.GetParameterPlaceholder(c.paramIndex), 1)
-			subconditions = append(subconditions, sql)
+			directCondition = strings.Replace(template, "?", c.dialect.GetParameterPlaceholder(c.paramIndex), 1)
 			args = append(args, fmt.Sprintf(`"%s"`, v))
 		}
 		c.paramIndex++
+
+		// Referenced memo tag match condition
+		var referencedCondition string
+		tablePrefix := c.dialect.GetTablePrefix()
+		
+		if _, ok := c.dialect.(*SQLiteDialect); ok {
+			referencedCondition = fmt.Sprintf(`%s.id IN (
+				SELECT mr.memo_id 
+				FROM memo_relation mr 
+				JOIN memo rm ON mr.related_memo_id = rm.id 
+				WHERE mr.type = 'REFERENCE' AND rm.payload LIKE %s
+			)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+			args = append(args, fmt.Sprintf(`%%"%s"%%`, v))
+		} else if _, ok := c.dialect.(*PostgreSQLDialect); ok {
+			referencedCondition = fmt.Sprintf(`%s.id IN (
+				SELECT mr.memo_id 
+				FROM memo_relation mr 
+				JOIN memo rm ON mr.related_memo_id = rm.id 
+				WHERE mr.type = 'REFERENCE' AND rm.payload->'tags' @> jsonb_build_array(%s::json)
+			)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+			args = append(args, fmt.Sprintf(`"%s"`, v))
+		} else { // MySQL
+			referencedCondition = fmt.Sprintf(`%s.`+"`id`"+` IN (
+				SELECT mr.`+"`memo_id`"+` 
+				FROM `+"`memo_relation`"+` mr 
+				JOIN `+"`memo`"+` rm ON mr.`+"`related_memo_id`"+` = rm.`+"`id`"+` 
+				WHERE mr.`+"`type`"+` = 'REFERENCE' AND JSON_CONTAINS(JSON_EXTRACT(rm.`+"`payload`"+`, '$.tags'), %s)
+			)`, tablePrefix, c.dialect.GetParameterPlaceholder(c.paramIndex))
+			args = append(args, fmt.Sprintf(`"%s"`, v))
+		}
+		c.paramIndex++
+
+		// Combine direct and referenced conditions with OR
+		combinedCondition := fmt.Sprintf("(%s OR %s)", directCondition, referencedCondition)
+		subconditions = append(subconditions, combinedCondition)
 	}
 
 	if len(subconditions) == 1 {

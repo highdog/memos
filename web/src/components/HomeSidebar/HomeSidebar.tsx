@@ -3,6 +3,8 @@ import useCurrentUser from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 import StatisticsView from "../StatisticsView";
 import ShortcutsSection from "./ShortcutsSection";
+import CheckinSection from "./CheckinSection";
+import GoalSection from "./GoalSection";
 
 interface Props {
   className?: string;
@@ -21,6 +23,8 @@ const HomeSidebar = observer((props: Props) => {
       <div className="mt-1 px-1 w-full">
         <StatisticsView />
         {currentUser && <ShortcutsSection />}
+        {currentUser && <CheckinSection />}
+        {currentUser && <GoalSection />}
       </div>
     </aside>
   );

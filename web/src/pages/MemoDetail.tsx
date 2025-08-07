@@ -127,7 +127,7 @@ const MemoDetail = observer(() => {
             </div>
           )}
           <MemoView
-            key={`${memo.name}-${memo.displayTime}`}
+            key={`${memo.name}-${memo.updateTime}`}
             className="shadow hover:shadow-md transition-all"
             memo={memo}
             compact={false}
