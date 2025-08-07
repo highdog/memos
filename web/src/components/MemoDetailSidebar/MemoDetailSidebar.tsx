@@ -24,9 +24,10 @@ interface Props {
   memo: Memo;
   className?: string;
   parentPage?: string;
+  isTaskMemo?: boolean;
 }
 
-const MemoDetailSidebar = ({ memo, className, parentPage }: Props) => {
+const MemoDetailSidebar = ({ memo, className, parentPage, isTaskMemo = false }: Props) => {
   const [showRelatedMemoEditor, setShowRelatedMemoEditor] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
 
@@ -39,9 +40,9 @@ const MemoDetailSidebar = ({ memo, className, parentPage }: Props) => {
     memo?.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE && relation.relatedMemo?.name === memo.name) || [];
   const referencedByMemos = referencedByRelations.map((relation) => memoStore.getMemoByName(relation.memo!.name)).filter((memo) => memo) as any as Memo[];
 
-  // 提取任务列表 - 重新设计逻辑
+  // 提取任务列表 - 只在任务笔记时解析
   const { mainTask, subtasks } = useMemo(() => {
-    if (!memo) return { mainTask: null, subtasks: [] };
+    if (!memo || !isTaskMemo) return { mainTask: null, subtasks: [] };
     
     // 从memo内容中解析任务
     const lines = memo.content.split('\n');
@@ -82,7 +83,7 @@ const MemoDetailSidebar = ({ memo, className, parentPage }: Props) => {
     });
     
     return { mainTask, subtasks };
-  }, [memo]);
+  }, [memo, isTaskMemo]);
 
 
 
@@ -215,87 +216,119 @@ const MemoDetailSidebar = ({ memo, className, parentPage }: Props) => {
       className={cn("relative w-full h-auto max-h-screen overflow-auto hide-scrollbar flex flex-col justify-start items-start", className)}
     >
       <div className="flex flex-col justify-start items-start w-full px-6 py-6 gap-6 h-auto shrink-0 flex-nowrap hide-scrollbar">
-        {/* 当前笔记引用的其他笔记 */}
-        {referencingMemos.length > 0 && (
+        {isTaskMemo ? (
+          /* 任务笔记：显示子任务区域 */
           <div className="mb-6 w-full">
-            <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
-              <div className="flex flex-row justify-start items-center">
-                <span className="text-muted-foreground text-sm">引用的笔记</span>
-                <span className="text-muted-foreground text-sm ml-1">({referencingMemos.length})</span>
+            <div className="text-xs text-muted-foreground mb-4 px-4">子任务</div>
+            
+            {/* 进度条 */}
+            <div className="mb-6 px-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                <span>进度</span>
+                <span>{subtasks.filter(t => t.completed).length}/{subtasks.length}</span>
+              </div>
+              <Progress value={subtasks.length > 0 ? (subtasks.filter(t => t.completed).length / subtasks.length) * 100 : 0} className="h-2" />
+            </div>
+            
+            {/* 子任务列表 */}
+            <div className="space-y-1 mb-6">
+              {subtasks.length > 0 ? (
+                subtasks.map((task) => (
+                  <div key={task.id} className="flex items-center gap-3 px-4 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded">
+                    <Checkbox
+                      className="h-4 w-4"
+                      checked={task.completed}
+                      onCheckedChange={() => handleToggleTask(task.id)}
+                    />
+                    <span className={cn(
+                      "text-sm flex-1",
+                      task.completed && "line-through text-muted-foreground"
+                    )}>
+                      {task.content}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  暂无子任务
+                </div>
+              )}
+            </div>
+            
+            {/* 添加子任务 */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-3 px-4">
+                <Input
+                  placeholder="添加子任务..."
+                  className="text-sm"
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  onKeyPress={handleSubtaskKeyPress}
+                />
+                <Button size="sm" onClick={handleAddSubtask}>
+                  <PlusIcon className="w-4 h-4" />
+                </Button>
               </div>
             </div>
-            <div className="w-full space-y-3">
-              {referencingMemos
-                .sort((a, b) => new Date(a.createTime!).getTime() - new Date(b.createTime!).getTime())
-                .map((referencingMemo) => (
-                  <div key={`referencing-${referencingMemo.name}-${referencingMemo.displayTime}`} className="w-full">
-                    <MemoView
-                      memo={referencingMemo}
-                      parentPage={parentPage}
-                      showCreator={false}
-                      compact={true}
-                      className="!mb-0 !w-full min-w-full"
-                    />
+          </div>
+        ) : (
+          /* 普通笔记：显示事件追踪 */
+          <>
+            {/* 当前笔记引用的其他笔记 */}
+            {referencingMemos.length > 0 && (
+              <div className="mb-6 w-full">
+                <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
+                  <div className="flex flex-row justify-start items-center">
+                    <span className="text-muted-foreground text-sm">引用的笔记</span>
+                    <span className="text-muted-foreground text-sm ml-1">({referencingMemos.length})</span>
                   </div>
-                ))}
-            </div>
-          </div>
-        )}
-        
-        {/* 子任务区域 */}
-        <div className="mb-6 w-full">
-          <div className="text-xs text-muted-foreground mb-4 px-4">子任务</div>
-          
-          {/* 进度条 */}
-          <div className="mb-6 px-4">
-            <div className="flex justify-between text-xs text-muted-foreground mb-2">
-              <span>进度</span>
-              <span>{subtasks.filter(t => t.completed).length}/{subtasks.length}</span>
-            </div>
-            <Progress value={subtasks.length > 0 ? (subtasks.filter(t => t.completed).length / subtasks.length) * 100 : 0} className="h-2" />
-          </div>
-          
-          {/* 子任务列表 */}
-          <div className="space-y-1 mb-6">
-            {subtasks.length > 0 ? (
-              subtasks.map((task) => (
-                <div key={task.id} className="flex items-center gap-3 px-4 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded">
-                  <Checkbox
-                    className="h-4 w-4"
-                    checked={task.completed}
-                    onCheckedChange={() => handleToggleTask(task.id)}
-                  />
-                  <span className={cn(
-                    "text-sm flex-1",
-                    task.completed && "line-through text-muted-foreground"
-                  )}>
-                    {task.content}
-                  </span>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-sm text-muted-foreground">
-                暂无子任务
+                <div className="w-full space-y-3">
+                  {referencingMemos
+                    .sort((a, b) => new Date(a.createTime!).getTime() - new Date(b.createTime!).getTime())
+                    .map((referencingMemo) => (
+                      <div key={`referencing-${referencingMemo.name}-${referencingMemo.displayTime}`} className="w-full">
+                        <MemoView
+                          memo={referencingMemo}
+                          parentPage={parentPage}
+                          showCreator={false}
+                          compact={true}
+                          className="!mb-0 !w-full min-w-full"
+                        />
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
-          </div>
-          
-          {/* 添加子任务 */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex gap-3 px-4">
-              <Input
-                placeholder="添加子任务..."
-                className="text-sm"
-                value={newSubtask}
-                onChange={(e) => setNewSubtask(e.target.value)}
-                onKeyPress={handleSubtaskKeyPress}
-              />
-              <Button size="sm" onClick={handleAddSubtask}>
-                <PlusIcon className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+            
+            {/* 被其他笔记引用的记录（事件追踪） */}
+            {referencedByMemos.length > 0 && (
+              <div className="mb-6 w-full">
+                <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
+                  <div className="flex flex-row justify-start items-center">
+                    <span className="text-muted-foreground text-sm">事件追踪</span>
+                    <span className="text-muted-foreground text-sm ml-1">({referencedByMemos.length})</span>
+                  </div>
+                </div>
+                <div className="w-full space-y-3">
+                  {referencedByMemos
+                    .sort((a, b) => new Date(b.createTime!).getTime() - new Date(a.createTime!).getTime())
+                    .map((referencedByMemo) => (
+                      <div key={`referenced-by-${referencedByMemo.name}-${referencedByMemo.displayTime}`} className="w-full">
+                        <MemoView
+                          memo={referencedByMemo}
+                          parentPage={parentPage}
+                          showCreator={false}
+                          compact={true}
+                          className="!mb-0 !w-full min-w-full"
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
       </div>
     </aside>

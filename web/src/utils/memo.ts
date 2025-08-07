@@ -1,4 +1,4 @@
-import { Visibility } from "@/types/proto/api/v1/memo_service";
+import { Memo, Visibility } from "@/types/proto/api/v1/memo_service";
 
 export const convertVisibilityFromString = (visibility: string) => {
   switch (visibility) {
@@ -24,4 +24,14 @@ export const convertVisibilityToString = (visibility: Visibility) => {
     default:
       return "PRIVATE";
   }
+};
+
+export const isTaskMemo = (memo: Memo): boolean => {
+  if (!memo.content) {
+    return false;
+  }
+
+  // 检查内容中是否包含任务列表项（- [ ] 或 - [x] 格式）
+  const taskPattern = /^[-*]\s*\[([ x])\]\s*.+$/m;
+  return taskPattern.test(memo.content);
 };

@@ -8,6 +8,7 @@ import CheckinDetailSidebar from "./MemoDetailSidebar/CheckinDetailSidebar";
 import GoalDetailSidebar from "./MemoDetailSidebar/GoalDetailSidebar";
 import { isCheckinMemo } from "@/utils/checkin";
 import { isGoalMemo } from "@/utils/goal";
+import { isTaskMemo } from "@/utils/memo";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 interface Props {
@@ -84,7 +85,7 @@ const MemoDetailDialog = observer(({ open, onOpenChange, memo, parentPage = "/",
                 ) : isGoalMemo(memo) ? (
                   <GoalDetailSidebar memo={memo} parentPage={parentPage} />
                 ) : (
-                  <MemoDetailSidebar memo={memo} parentPage={parentPage} />
+                  <MemoDetailSidebar memo={memo} parentPage={parentPage} isTaskMemo={isTaskMemo(memo)} />
                 )}
               </div>
             </div>
