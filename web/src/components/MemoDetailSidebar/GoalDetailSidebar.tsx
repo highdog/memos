@@ -9,6 +9,56 @@ import { Progress } from "@/components/ui/progress";
 import GoalButton from "../MemoView/GoalButton";
 import dayjs from "dayjs";
 
+// 目标完成记录显示组件
+const GoalCompletionRecordView = ({ record }: { record: Memo }) => {
+  // 提取并清理完成记录的关键信息
+  const extractCompletionInfo = (content: string) => {
+    // 移除零宽度空格包围的关联信息
+    let cleanContent = content.replace(/\u200B@[^\u200B]*\u200B/g, '');
+    // 移除HTML注释
+    cleanContent = cleanContent.replace(/<!--.*?-->/g, '');
+    
+    // 格式1: goal.ts生成的格式
+    const match1 = cleanContent.match(/完成目标第\s*(\d+)\s*次\s*-\s*(.+?)[\n\r]/);
+    if (match1) {
+      const [, count, title] = match1;
+      const progressMatch = cleanContent.match(/目标进度：(\d+\/\d+)/);
+      const progress = progressMatch ? progressMatch[1] : '';
+      return `完成目标：${title.trim()}，当前进度：${progress}`;
+    }
+    
+    // 格式2: MemoView/GoalButton生成的新格式（单行）
+    const match2 = cleanContent.match(/✅ 完成目标：(.+?)，当前进度：(\d+\/\d+)/);
+    if (match2) {
+      const [, title, progress] = match2;
+      return `完成目标：${title.trim()}，当前进度：${progress}`;
+    }
+    
+    // 格式3: MemoView/GoalButton生成的旧格式（多行）
+    const match3 = cleanContent.match(/✅ 完成目标：(.+?)[\n\r]/);
+    if (match3) {
+      const title = match3[1];
+      const progressMatch = cleanContent.match(/📈 当前进度：(\d+\/\d+)/);
+      const progress = progressMatch ? progressMatch[1] : '';
+      return `完成目标：${title.trim()}，当前进度：${progress}`;
+    }
+    
+    return cleanContent.split('\n')[0]; // 默认显示第一行
+  };
+
+  const displayText = extractCompletionInfo(record.content);
+  const createTime = dayjs(record.createTime).format('HH:mm');
+
+  return (
+    <div className="w-full p-2 rounded border bg-card hover:bg-accent/50 transition-colors">
+      <div className="text-sm text-foreground">
+        <span className="text-xs text-muted-foreground mr-2">{createTime}</span>
+        {displayText}
+      </div>
+    </div>
+  );
+};
+
 interface Props {
   memo: Memo;
   className?: string;
@@ -75,7 +125,7 @@ const GoalDetailSidebar = observer(({ memo, className, parentPage }: Props) => {
     <aside
       className={cn("relative w-full h-auto max-h-screen overflow-auto hide-scrollbar flex flex-col justify-start items-start", className)}
     >
-      <div className="flex flex-col justify-start items-start w-full px-1 gap-2 h-auto shrink-0 flex-nowrap hide-scrollbar">
+      <div className="flex flex-col justify-start items-start w-full px-4 pt-4 gap-2 h-auto shrink-0 flex-nowrap hide-scrollbar">
         {/* 目标统计信息 */}
         <div className="mb-4 w-full">
           <div className="w-full flex flex-row justify-between items-center h-8 pl-2 mb-2">
@@ -146,47 +196,12 @@ const GoalDetailSidebar = observer(({ memo, className, parentPage }: Props) => {
                     
                     {/* 该日期的完成记录 */}
                     <div className="space-y-2 ml-4">
-                      {records.map((record) => {
-                        // 提取完成记录的关键信息
-                        const extractCompletionInfo = (content: string) => {
-                          // 格式1: goal.ts生成的格式
-                          const match1 = content.match(/完成目标第\s*(\d+)\s*次\s*-\s*(.+?)[\n\r]/);
-                          if (match1) {
-                            const [, count, title] = match1;
-                            const progressMatch = content.match(/目标进度：(\d+\/\d+)/);
-                            const progress = progressMatch ? progressMatch[1] : '';
-                            return `完成目标：${title.trim()}，当前进度：${progress}`;
-                          }
-                          
-                          // 格式2: MemoView/GoalButton生成的新格式（单行）
-                          const match2 = content.match(/✅ 完成目标：(.+?)，当前进度：(\d+\/\d+)/);
-                          if (match2) {
-                            const [, title, progress] = match2;
-                            return `完成目标：${title.trim()}，当前进度：${progress}`;
-                          }
-                          
-                          // 格式3: MemoView/GoalButton生成的旧格式（多行）
-                          const match3 = content.match(/✅ 完成目标：(.+?)[\n\r]/);
-                          if (match3) {
-                            const title = match3[1];
-                            const progressMatch = content.match(/📈 当前进度：(\d+\/\d+)/);
-                            const progress = progressMatch ? progressMatch[1] : '';
-                            return `完成目标：${title.trim()}，当前进度：${progress}`;
-                          }
-                          
-                          return content.split('\n')[0]; // 默认显示第一行
-                        };
-
-                        const displayText = extractCompletionInfo(record.content);
-                        
-                        return (
-                          <div key={`${record.name}-${record.displayTime}`} className="w-full">
-                            <div className="text-sm text-muted-foreground bg-gray-50 rounded p-2">
-                              {displayText}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {records.map((record) => (
+                        <GoalCompletionRecordView 
+                          key={`${record.name}-${record.displayTime}`} 
+                          record={record} 
+                        />
+                      ))}
                     </div>
                   </div>
                 ))}

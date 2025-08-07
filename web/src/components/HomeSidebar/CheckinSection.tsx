@@ -1,6 +1,6 @@
 import { StarIcon, CheckIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { memoStore } from "@/store";
@@ -15,6 +15,7 @@ const CheckinSection = observer(() => {
   const t = useTranslate();
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [checkinCounts, setCheckinCounts] = useState<Map<string, number>>(new Map());
 
   // 获取所有打卡笔记
   const checkinMemos = useMemo(() => {
@@ -25,6 +26,22 @@ const CheckinSection = observer(() => {
         return new Date(b.createTime!).getTime() - new Date(a.createTime!).getTime();
       });
   }, [memoStore.state.memos]);
+
+  // 获取每个打卡笔记的打卡次数
+  useEffect(() => {
+    const fetchCheckinCounts = async () => {
+      const counts = new Map<string, number>();
+      for (const memo of checkinMemos) {
+        const count = await getCheckinCount(memo);
+        counts.set(memo.name, count);
+      }
+      setCheckinCounts(counts);
+    };
+
+    if (checkinMemos.length > 0) {
+      fetchCheckinCounts();
+    }
+  }, [checkinMemos]);
 
   const handleMemoClick = (memo: Memo) => {
     setSelectedMemo(memo);
@@ -48,6 +65,7 @@ const CheckinSection = observer(() => {
         {checkinMemos.slice(0, 5).map((memo) => {
           const title = extractCheckinTitle(memo);
           const alreadyCheckedIn = hasCheckedInToday(memo);
+          const checkinCount = checkinCounts.get(memo.name) || 0;
           
           return (
             <div
@@ -58,13 +76,18 @@ const CheckinSection = observer(() => {
                 onClick={() => handleMemoClick(memo)}
                 className="flex-1 min-w-0 cursor-pointer"
               >
-                <div className="flex items-center space-x-2">
-                  <div className={cn(
-                    "w-2 h-2 rounded-full",
-                    alreadyCheckedIn ? "bg-green-500" : "bg-gray-300"
-                  )} />
-                  <span className="text-sm truncate text-sidebar-foreground">
-                    {title}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      alreadyCheckedIn ? "bg-green-500" : "bg-gray-300"
+                    )} />
+                    <span className="text-sm truncate text-sidebar-foreground">
+                      {title}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                    {checkinCount}次
                   </span>
                 </div>
               </div>

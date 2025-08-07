@@ -54,15 +54,13 @@ export const getCheckinCount = async (checkinMemo: Memo): Promise<number> => {
 export const generateCheckinRecord = async (checkinMemo: Memo): Promise<string> => {
   const checkinCount = await getCheckinCount(checkinMemo);
   const title = extractCheckinTitle(checkinMemo);
-  const currentTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
   const checkinMemoName = checkinMemo.name;
   
-  return `✅ ${title} - 打卡第 ${checkinCount + 1} 次
-
-⏰ 打卡时间：${currentTime}
-📝 关联任务：[[${checkinMemoName}]]
-
-#打卡记录 #${title.replace(/\s+/g, '')}`;
+  // 生成显示内容和隐藏的关联信息
+  // 使用零宽度空格字符隐藏关联信息，不会被渲染但能被搜索到
+  const hiddenReference = `\u200B@${checkinMemoName}\u200B`;
+  
+  return `✅ ${title} - 打卡第 ${checkinCount + 1} 次${hiddenReference}`;
 };
 
 /**

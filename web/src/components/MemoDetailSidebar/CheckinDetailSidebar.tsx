@@ -8,6 +8,26 @@ import { extractCheckinTitle, getCheckinStats } from "@/utils/checkin";
 import MemoView from "../MemoView";
 import dayjs from "dayjs";
 
+// 简化的打卡记录显示组件
+const CheckinRecordView = ({ memo, parentPage }: { memo: Memo; parentPage?: string }) => {
+  // 过滤掉关联信息，只显示主要内容
+  const cleanContent = memo.content
+    .replace(/\u200B@[^\u200B]*\u200B/g, '') // 移除零宽度空格包围的关联信息
+    .replace(/<!--.*?-->/g, '') // 移除HTML注释
+    .trim();
+
+  return (
+    <div className="text-sm text-foreground">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          {dayjs(memo.displayTime).format('HH:mm:ss')}
+        </span>
+        <span>{cleanContent}</span>
+      </div>
+    </div>
+  );
+};
+
 interface Props {
   memo: Memo;
   className?: string;
@@ -60,7 +80,7 @@ const CheckinDetailSidebar = observer(({ memo, className, parentPage }: Props) =
     <aside
       className={cn("relative w-full h-auto max-h-screen overflow-auto hide-scrollbar flex flex-col justify-start items-start", className)}
     >
-      <div className="flex flex-col justify-start items-start w-full px-1 gap-2 h-auto shrink-0 flex-nowrap hide-scrollbar">
+      <div className="flex flex-col justify-start items-start w-full px-4 pt-4 gap-2 h-auto shrink-0 flex-nowrap hide-scrollbar">
         {/* 打卡统计信息 */}
         <div className="mb-4 w-full">
           <div className="w-full flex flex-row justify-between items-center h-8 pl-2 mb-2">
@@ -120,13 +140,7 @@ const CheckinDetailSidebar = observer(({ memo, className, parentPage }: Props) =
                     <div className="space-y-2 ml-4">
                       {records.map((record) => (
                         <div key={`${record.name}-${record.displayTime}`} className="w-full">
-                          <MemoView
-                            memo={record}
-                            parentPage={parentPage}
-                            showCreator={false}
-                            compact={true}
-                            className="!mb-0 !w-full min-w-full"
-                          />
+                          <CheckinRecordView memo={record} parentPage={parentPage} />
                         </div>
                       ))}
                     </div>
