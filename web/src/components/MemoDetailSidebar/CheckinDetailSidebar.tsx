@@ -1,28 +1,76 @@
-import { StarIcon, CalendarIcon, TrendingUpIcon } from "lucide-react";
+import { StarIcon, CalendarIcon, TrendingUpIcon, TrashIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { memoStore } from "@/store";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { extractCheckinTitle, getCheckinStats } from "@/utils/checkin";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import MemoView from "../MemoView";
 import dayjs from "dayjs";
 
 // 简化的打卡记录显示组件
-const CheckinRecordView = ({ memo, parentPage }: { memo: Memo; parentPage?: string }) => {
+const CheckinRecordView = ({ memo, parentPage, onDelete }: { memo: Memo; parentPage?: string; onDelete: (memo: Memo) => void }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // 过滤掉关联信息，只显示主要内容
   const cleanContent = memo.content
     .replace(/\u200B@[^\u200B]*\u200B/g, '') // 移除零宽度空格包围的关联信息
     .replace(/<!--.*?-->/g, '') // 移除HTML注释
     .trim();
 
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(memo);
+      toast.success("打卡记录已删除");
+    } catch (error) {
+      console.error("删除打卡记录失败:", error);
+      toast.error("删除打卡记录失败");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="text-sm text-foreground">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          {dayjs(memo.displayTime).format('HH:mm:ss')}
-        </span>
-        <span>{cleanContent}</span>
+    <div 
+      className="text-sm text-foreground group relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-xs text-muted-foreground">
+            {dayjs(memo.displayTime).format('HH:mm:ss')}
+          </span>
+          <span className="flex-1">{cleanContent}</span>
+        </div>
+        
+        {isHovered && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto min-w-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  <TrashIcon className="w-3 h-3 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>删除打卡记录</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );
@@ -35,6 +83,11 @@ interface Props {
 }
 
 const CheckinDetailSidebar = observer(({ memo, className, parentPage }: Props) => {
+  // 删除打卡记录的函数
+  const handleDeleteCheckinRecord = async (recordMemo: Memo) => {
+    await memoStore.deleteMemo(recordMemo.name);
+  };
+
   // 获取所有打卡记录
   const checkinRecords = useMemo(() => {
     const checkinMemoName = memo.name;
@@ -140,7 +193,7 @@ const CheckinDetailSidebar = observer(({ memo, className, parentPage }: Props) =
                     <div className="space-y-2 ml-4">
                       {records.map((record) => (
                         <div key={`${record.name}-${record.displayTime}`} className="w-full">
-                          <CheckinRecordView memo={record} parentPage={parentPage} />
+                          <CheckinRecordView memo={record} parentPage={parentPage} onDelete={handleDeleteCheckinRecord} />
                         </div>
                       ))}
                     </div>

@@ -1,16 +1,22 @@
-import { TargetIcon, CalendarIcon, TrendingUpIcon, CheckCircleIcon } from "lucide-react";
+import { TargetIcon, CalendarIcon, TrendingUpIcon, CheckCircleIcon, TrashIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { memoStore } from "@/store";
 import { Memo } from "@/types/proto/api/v1/memo_service";
 import { extractGoalInfo } from "@/utils/goal";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import GoalButton from "../MemoView/GoalButton";
 import dayjs from "dayjs";
 
 // 目标完成记录显示组件
-const GoalCompletionRecordView = ({ record }: { record: Memo }) => {
+const GoalCompletionRecordView = ({ record, onDelete }: { record: Memo; onDelete: (memo: Memo) => void }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // 提取并清理完成记录的关键信息
   const extractCompletionInfo = (content: string) => {
     // 移除零宽度空格包围的关联信息
@@ -49,11 +55,53 @@ const GoalCompletionRecordView = ({ record }: { record: Memo }) => {
   const displayText = extractCompletionInfo(record.content);
   const createTime = dayjs(record.createTime).format('HH:mm');
 
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(record);
+      toast.success("进度记录已删除");
+    } catch (error) {
+      console.error("删除进度记录失败:", error);
+      toast.error("删除进度记录失败");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="w-full p-2 rounded border bg-card hover:bg-accent/50 transition-colors">
-      <div className="text-sm text-foreground">
-        <span className="text-xs text-muted-foreground mr-2">{createTime}</span>
-        {displayText}
+    <div 
+      className="w-full p-2 rounded border bg-card hover:bg-accent/50 transition-colors group relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm text-foreground flex-1">
+          <span className="text-xs text-muted-foreground mr-2">{createTime}</span>
+          {displayText}
+        </div>
+        
+        {isHovered && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1 h-auto min-w-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  <TrashIcon className="w-3 h-3 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>删除进度记录</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );
@@ -66,6 +114,11 @@ interface Props {
 }
 
 const GoalDetailSidebar = observer(({ memo, className, parentPage }: Props) => {
+  // 删除进度记录的函数
+  const handleDeleteCompletionRecord = async (recordMemo: Memo) => {
+    await memoStore.deleteMemo(recordMemo.name);
+  };
+
   // 获取目标信息和统计
   const goalInfo = useMemo(() => {
     return extractGoalInfo(memo);
@@ -200,6 +253,7 @@ const GoalDetailSidebar = observer(({ memo, className, parentPage }: Props) => {
                         <GoalCompletionRecordView 
                           key={`${record.name}-${record.displayTime}`} 
                           record={record} 
+                          onDelete={handleDeleteCompletionRecord}
                         />
                       ))}
                     </div>
