@@ -1,4 +1,4 @@
-import { CheckSquareIcon } from "lucide-react";
+import { StarIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Button } from "@/components/ui/button";
 import { useTranslate } from "@/utils/i18n";
@@ -45,7 +45,7 @@ const CheckinButton = observer((props: Props) => {
 
   return (
     <Button variant="ghost" size="icon" onClick={handleCheckinClick} title="添加打卡">
-      <CheckSquareIcon className="size-5" />
+      <StarIcon className="size-5" />
     </Button>
   );
 });
