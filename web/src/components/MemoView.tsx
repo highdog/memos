@@ -346,7 +346,7 @@ const MemoView: React.FC<Props> = observer((props: Props) => {
         {memo.location && <MemoLocationView location={memo.location} />}
         <MemoAttachmentListView attachments={memo.attachments} />
         <MemoReactionistView memo={memo} reactions={memo.reactions} />
-        <MemoReferencesView memo={memo} />
+        {!props.inDialog && <MemoReferencesView memo={memo} />}
       </div>
       {nsfw && !showNSFWContent && (
         <>

@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { memoStore, memoDetailStore } from "@/store";
-import { Memo, MemoRelation_Type } from "@/types/proto/api/v1/memo_service";
+import { Memo, MemoRelation_Type, Visibility } from "@/types/proto/api/v1/memo_service";
 import { Node, NodeType } from "@/types/proto/api/v1/markdown_service";
 import MemoView from "../MemoView";
 import { CheckSquareIcon, Square, PlusIcon, ChevronRightIcon } from "lucide-react";
@@ -30,13 +31,15 @@ interface Props {
 const MemoDetailSidebar = ({ memo, className, parentPage, isTaskMemo = false }: Props) => {
   const [showRelatedMemoEditor, setShowRelatedMemoEditor] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
+  const [newEventTracking, setNewEventTracking] = useState("");
 
   // 获取关联笔记
   const referencingRelations = 
     memo?.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE && relation.relatedMemo?.name !== memo.name) || [];
   const referencingMemos = referencingRelations.map((relation) => memoStore.getMemoByName(relation.relatedMemo!.name)).filter((memo) => memo) as any as Memo[];
 
-  const referencedByRelations = 
+  // 获取引用当前笔记的其他笔记（其他笔记 -> 当前笔记，即事件追踪）
+  const referencedByRelations =
     memo?.relations.filter((relation) => relation.type === MemoRelation_Type.REFERENCE && relation.relatedMemo?.name === memo.name) || [];
   const referencedByMemos = referencedByRelations.map((relation) => memoStore.getMemoByName(relation.memo!.name)).filter((memo) => memo) as any as Memo[];
 
@@ -205,6 +208,53 @@ const MemoDetailSidebar = ({ memo, className, parentPage, isTaskMemo = false }: 
     }
   };
 
+  const handleAddEventTracking = async () => {
+    if (!newEventTracking.trim() || !memo) return;
+    
+    try {
+      // 创建新的事件追踪笔记，并设置关联关系
+      const response = await memoStore.createMemo({
+        memo: Memo.fromPartial({
+          content: newEventTracking,
+          visibility: Visibility.PRIVATE,
+          relations: [
+            {
+              memo: { name: "", snippet: "" },
+              relatedMemo: { name: memo.name, snippet: memo.content.substring(0, 100) },
+              type: MemoRelation_Type.REFERENCE,
+            },
+          ],
+        }),
+        memoId: "",
+        validateOnly: false,
+        requestId: "",
+      });
+      
+      if (response) {
+        // 重新获取当前笔记以更新关联关系
+        const updatedMemo = await memoStore.getOrFetchMemoByName(memo.name, { skipCache: true });
+        
+        // 如果当前笔记是在详情弹窗中显示的，则更新 memoDetailStore 中的数据
+        if (memoDetailStore.selectedMemo && memoDetailStore.selectedMemo.name === memo.name) {
+          memoDetailStore.setSelectedMemo(updatedMemo);
+        }
+        
+        // 清空输入框
+        setNewEventTracking("");
+        
+        toast.success("事件追踪笔记添加成功");
+      }
+    } catch (error) {
+      console.error('Failed to add event tracking:', error);
+    }
+  };
+
+  const handleEventTrackingKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddEventTracking();
+    }
+  };
+
 
 
 
@@ -274,42 +324,32 @@ const MemoDetailSidebar = ({ memo, className, parentPage, isTaskMemo = false }: 
         ) : (
           /* 普通笔记：显示事件追踪 */
           <>
-            {/* 当前笔记引用的其他笔记 */}
-            {referencingMemos.length > 0 && (
-              <div className="mb-6 w-full">
-                <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
-                  <div className="flex flex-row justify-start items-center">
-                    <span className="text-muted-foreground text-sm">引用的笔记</span>
-                    <span className="text-muted-foreground text-sm ml-1">({referencingMemos.length})</span>
-                  </div>
-                </div>
-                <div className="w-full space-y-3">
-                  {referencingMemos
-                    .sort((a, b) => new Date(a.createTime!).getTime() - new Date(b.createTime!).getTime())
-                    .map((referencingMemo) => (
-                      <div key={`referencing-${referencingMemo.name}-${referencingMemo.displayTime}`} className="w-full">
-                        <MemoView
-                          memo={referencingMemo}
-                          parentPage={parentPage}
-                          showCreator={false}
-                          compact={true}
-                          className="!mb-0 !w-full min-w-full"
-                        />
-                      </div>
-                    ))}
+            {/* 被其他笔记引用的记录（事件追踪） */}
+            <div className="mb-6 w-full">
+              <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
+                <div className="flex flex-row justify-start items-center">
+                  <span className="text-muted-foreground text-sm">事件追踪</span>
+                  <span className="text-muted-foreground text-sm ml-1">({referencedByMemos.length})</span>
                 </div>
               </div>
-            )}
-            
-            {/* 被其他笔记引用的记录（事件追踪） */}
-            {referencedByMemos.length > 0 && (
-              <div className="mb-6 w-full">
-                <div className="w-full flex flex-row justify-between items-center h-8 pl-4 mb-4">
-                  <div className="flex flex-row justify-start items-center">
-                    <span className="text-muted-foreground text-sm">事件追踪</span>
-                    <span className="text-muted-foreground text-sm ml-1">({referencedByMemos.length})</span>
-                  </div>
+              
+              {/* 添加事件追踪 - 移到最上面 */}
+              <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+                <div className="flex gap-3 px-4">
+                  <Input
+                    placeholder="添加事件追踪..."
+                    className="text-sm"
+                    value={newEventTracking}
+                    onChange={(e) => setNewEventTracking(e.target.value)}
+                    onKeyPress={handleEventTrackingKeyPress}
+                  />
+                  <Button size="sm" onClick={handleAddEventTracking}>
+                    <PlusIcon className="w-4 h-4" />
+                  </Button>
                 </div>
+              </div>
+              
+              {referencedByMemos.length > 0 ? (
                 <div className="w-full space-y-3">
                   {referencedByMemos
                     .sort((a, b) => new Date(b.createTime!).getTime() - new Date(a.createTime!).getTime())
@@ -325,8 +365,12 @@ const MemoDetailSidebar = ({ memo, className, parentPage, isTaskMemo = false }: 
                       </div>
                     ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  暂无事件追踪
+                </div>
+              )}
+            </div>
           </>
         )}
 
